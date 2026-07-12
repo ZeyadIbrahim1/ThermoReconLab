@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "thermoreconlab"
+version = "0.1.0"
+description = "A Python package for reproducible 2D heat-source reconstruction from sparse temperature sensor measurements."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Zeyad Ibrahim" }
+]
+
+keywords = [
+    "inverse problems",
+    "heat equation",
+    "finite differences",
+    "scientific computing",
+    "temperature sensors",
+    "tikhonov regularization"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering"
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "matplotlib>=3.7",
+    "pandas>=2.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "jupyter>=1.0",
+    "mkdocs>=1.5",
+    "mkdocs-material>=9.5"
+]
+
+[project.urls]
+Repository = "https://github.com/ZeyadIbrahim1/ThermoReconLab"
+Issues = "https://github.com/ZeyadIbrahim1/ThermoReconLab/issues"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra"
