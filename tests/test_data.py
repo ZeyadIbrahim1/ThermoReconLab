@@ -1,7 +1,9 @@
 """Tests for synthetic data generation and array input/output."""
 
 from pathlib import Path
+import pandas as pd
 
+from thermoreconlab.sensors import SensorData
 import numpy as np
 import pytest
 
@@ -11,8 +13,10 @@ from thermoreconlab.data import (
     gaussian_source,
     load_array,
     load_heatmap_csv,
+    load_sensor_csv,
     random_hotspots,
     save_array,
+    save_sensor_csv,
     two_gaussian_sources,
 )
 from thermoreconlab.exceptions import DataFormatError, ValidationError
@@ -242,3 +246,103 @@ def test_load_heatmap_csv_rejects_wrong_shape(
 
     with pytest.raises(ValidationError):
         load_heatmap_csv(path, grid=grid)
+
+def test_sensor_csv_round_trip(tmp_path: Path) -> None:
+    """Sensor measurements should survive CSV save and load."""
+    sensor_data = SensorData(
+        indices=np.array(
+            [
+                [1, 2],
+                [3, 4],
+            ]
+        ),
+        values=np.array([0.5, 1.5]),
+        coordinates=np.array(
+            [
+                [0.1, 0.2],
+                [0.3, 0.4],
+            ]
+        ),
+    )
+
+    path = tmp_path / "sensors.csv"
+
+    saved_path = save_sensor_csv(path, sensor_data)
+    loaded = load_sensor_csv(saved_path)
+
+    assert saved_path.exists()
+    assert np.array_equal(
+        loaded.indices,
+        sensor_data.indices,
+    )
+    assert np.allclose(
+        loaded.values,
+        sensor_data.values,
+    )
+    assert loaded.coordinates is not None
+    assert np.allclose(
+        loaded.coordinates,
+        sensor_data.coordinates,
+    )
+
+
+def test_load_sensor_csv_accepts_required_columns(
+    tmp_path: Path,
+) -> None:
+    """A CSV containing i, j, and value should be valid."""
+    path = tmp_path / "sensors.csv"
+
+    dataframe = pd.DataFrame(
+        {
+            "i": [1, 2],
+            "j": [3, 4],
+            "value": [0.5, 0.8],
+        }
+    )
+    dataframe.to_csv(path, index=False)
+
+    sensor_data = load_sensor_csv(path)
+
+    assert len(sensor_data) == 2
+    assert sensor_data.coordinates is None
+
+
+def test_load_sensor_csv_rejects_missing_columns(
+    tmp_path: Path,
+) -> None:
+    """The required sensor columns must be present."""
+    path = tmp_path / "invalid_sensors.csv"
+
+    dataframe = pd.DataFrame(
+        {
+            "i": [1, 2],
+            "value": [0.5, 0.8],
+        }
+    )
+    dataframe.to_csv(path, index=False)
+
+    with pytest.raises(DataFormatError):
+        load_sensor_csv(path)
+
+
+def test_load_sensor_csv_rejects_non_csv_file(
+    tmp_path: Path,
+) -> None:
+    """Sensor measurements currently require CSV input."""
+    path = tmp_path / "sensors.txt"
+    path.write_text("i,j,value\n1,2,0.5", encoding="utf-8")
+
+    with pytest.raises(DataFormatError):
+        load_sensor_csv(path)
+
+
+def test_save_sensor_csv_rejects_invalid_object(
+    tmp_path: Path,
+) -> None:
+    """Only SensorData objects should be exported."""
+    with pytest.raises(ValidationError):
+        save_sensor_csv(
+            tmp_path / "sensors.csv",
+            np.ones((3, 3)),  # type: ignore[arg-type]
+        )
+

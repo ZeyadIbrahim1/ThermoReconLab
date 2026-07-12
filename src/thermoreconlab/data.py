@@ -11,6 +11,9 @@ from __future__ import annotations
 from numbers import Integral, Real
 from os import PathLike
 from pathlib import Path
+import pandas as pd
+
+from thermoreconlab.sensors import SensorData
 from typing import Sequence
 
 import numpy as np
@@ -501,3 +504,112 @@ def load_heatmap_csv(
         return validate_field(array, grid, name="heatmap")
 
     return array
+def load_sensor_csv(path: PathInput) -> SensorData:
+    """Load sparse sensor measurements from a CSV file.
+
+    The CSV file must contain these columns:
+
+    - ``i``: grid index in the x-direction,
+    - ``j``: grid index in the y-direction,
+    - ``value``: measured temperature.
+
+    Optional physical-coordinate columns are:
+
+    - ``x``,
+    - ``y``.
+
+    Parameters
+    ----------
+    path:
+        Path to the sensor CSV file.
+
+    Returns
+    -------
+    SensorData
+        Validated sensor locations and measurements.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the requested file does not exist.
+    DataFormatError
+        If the file is not CSV or cannot be read.
+    """
+    file_path = Path(path)
+
+    if not file_path.is_file():
+        raise FileNotFoundError(
+            f"Sensor data file does not exist: {file_path}"
+        )
+
+    if file_path.suffix.lower() != ".csv":
+        raise DataFormatError(
+            "Sensor measurements must be loaded from a CSV file."
+        )
+
+    try:
+        dataframe = pd.read_csv(file_path)
+    except (OSError, pd.errors.ParserError) as error:
+        raise DataFormatError(
+            f"Could not read sensor data from {file_path}."
+        ) from error
+
+    try:
+        return SensorData.from_dataframe(dataframe)
+    except ValidationError as error:
+        raise DataFormatError(
+            f"Invalid sensor CSV format in {file_path.name}. "
+            "Required columns are i, j, and value."
+        ) from error
+
+
+def save_sensor_csv(
+    path: PathInput,
+    sensor_data: SensorData,
+) -> Path:
+    """Save sparse sensor measurements to a CSV file.
+
+    Parameters
+    ----------
+    path:
+        Output CSV path.
+    sensor_data:
+        Sensor measurements to save.
+
+    Returns
+    -------
+    pathlib.Path
+        Final output path.
+
+    Raises
+    ------
+    ValidationError
+        If ``sensor_data`` is invalid.
+    DataFormatError
+        If the path is not a CSV file or writing fails.
+    """
+    if not isinstance(sensor_data, SensorData):
+        raise ValidationError(
+            "sensor_data must be a SensorData object."
+        )
+
+    file_path = Path(path)
+
+    if file_path.suffix.lower() != ".csv":
+        raise DataFormatError(
+            "Sensor measurements must be saved as a CSV file."
+        )
+
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        sensor_data.to_dataframe().to_csv(
+            file_path,
+            index=False,
+        )
+    except OSError as error:
+        raise DataFormatError(
+            f"Could not save sensor data to {file_path}."
+        ) from error
+
+    return file_path
