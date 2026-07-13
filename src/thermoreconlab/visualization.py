@@ -544,3 +544,116 @@ def plot_sensor_count_study(
     axis.legend()
 
     return figure, axis
+
+
+def plot_noise_sensitivity_study(
+    dataframe: pd.DataFrame,
+    *,
+    metric: str = "relative_l2_error",
+    title: str = "Noise-sensitivity study",
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
+    """Plot reconstruction quality against measurement-noise level.
+
+    Parameters
+    ----------
+    dataframe:
+        Results returned by ``run_noise_sensitivity_study``.
+    metric:
+        DataFrame column displayed on the vertical axis.
+    title:
+        Plot title.
+    ax:
+        Optional existing Matplotlib axis.
+
+    Returns
+    -------
+    tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+        Figure and axis containing the study plot.
+    """
+    if not isinstance(dataframe, pd.DataFrame):
+        raise ValidationError(
+            "dataframe must be a pandas DataFrame."
+        )
+
+    if dataframe.empty:
+        raise ValidationError(
+            "dataframe must contain at least one result."
+        )
+
+    if not isinstance(metric, str) or not metric.strip():
+        raise ValidationError(
+            "metric must be a non-empty string."
+        )
+
+    required_columns = {"noise_level", metric}
+    missing_columns = required_columns.difference(
+        dataframe.columns
+    )
+
+    if missing_columns:
+        raise ValidationError(
+            "Noise-sensitivity study data is missing columns: "
+            f"{sorted(missing_columns)}."
+        )
+
+    try:
+        noise_levels = dataframe["noise_level"].to_numpy(
+            dtype=float
+        )
+        metric_values = dataframe[metric].to_numpy(
+            dtype=float
+        )
+    except (TypeError, ValueError) as error:
+        raise ValidationError(
+            "noise_level and metric columns must be numeric."
+        ) from error
+
+    if not np.all(np.isfinite(noise_levels)):
+        raise ValidationError(
+            "noise_level values must be finite."
+        )
+
+    if np.any(noise_levels < 0.0):
+        raise ValidationError(
+            "noise_level values must be nonnegative."
+        )
+
+    if not np.all(np.isfinite(metric_values)):
+        raise ValidationError(
+            f"{metric} values must be finite."
+        )
+
+    order = np.argsort(noise_levels)
+    noise_levels = noise_levels[order]
+    metric_values = metric_values[order]
+
+    figure, axis = _prepare_axes(ax)
+
+    axis.plot(
+        noise_levels,
+        metric_values,
+        marker="o",
+    )
+
+    best_index = int(np.argmin(metric_values))
+    best_noise = noise_levels[best_index]
+    best_metric = metric_values[best_index]
+
+    axis.scatter(
+        [best_noise],
+        [best_metric],
+        marker="*",
+        s=140,
+        label=f"Lowest error at noise = {best_noise:.1%}",
+    )
+
+    axis.set_xlabel("Relative measurement-noise level")
+    axis.set_ylabel(
+        metric.replace("_", " ").title()
+    )
+    axis.set_title(title)
+    axis.grid(True, linestyle=":")
+    axis.legend()
+
+    return figure, axis

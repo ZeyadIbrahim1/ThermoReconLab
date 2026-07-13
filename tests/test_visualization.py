@@ -3,15 +3,19 @@
 import matplotlib
 import pandas as pd
 matplotlib.use("Agg")
+
 from thermoreconlab.visualization import (
     plot_error_map,
     plot_heatmap,
+    plot_noise_sensitivity_study,
     plot_regularization_study,
+    plot_sensor_count_study,
     plot_sensor_layout,
     plot_sensor_measurements,
     plot_source,
     plot_temperature,
 )
+
 
 from thermoreconlab.visualization import (
     plot_error_map,
@@ -335,3 +339,71 @@ def test_sensor_count_plot_rejects_nonpositive_count() -> None:
 
     with pytest.raises(ValidationError):
         plot_sensor_count_study(dataframe)        
+
+
+def test_noise_study_plot_returns_figure_and_axis() -> None:
+    """Noise-study results should produce a line plot."""
+    dataframe = pd.DataFrame(
+        {
+            "noise_level": [0.0, 0.02, 0.05],
+            "relative_l2_error": [0.50, 0.53, 0.64],
+        }
+    )
+
+    figure, axis = plot_noise_sensitivity_study(dataframe)
+
+    assert isinstance(figure, Figure)
+    assert isinstance(axis, Axes)
+    assert len(axis.lines) == 1
+    assert (
+        axis.get_xlabel()
+        == "Relative measurement-noise level"
+    )
+
+
+def test_noise_study_plot_sorts_noise_levels() -> None:
+    """Noise levels should be plotted in ascending order."""
+    dataframe = pd.DataFrame(
+        {
+            "noise_level": [0.05, 0.0, 0.02],
+            "relative_l2_error": [0.64, 0.50, 0.53],
+        }
+    )
+
+    _, axis = plot_noise_sensitivity_study(dataframe)
+
+    plotted_levels = axis.lines[0].get_xdata()
+
+    assert np.array_equal(
+        plotted_levels,
+        np.array([0.0, 0.02, 0.05]),
+    )
+
+
+def test_noise_study_plot_rejects_missing_metric() -> None:
+    """The selected metric must exist in the DataFrame."""
+    dataframe = pd.DataFrame(
+        {
+            "noise_level": [0.0, 0.02],
+            "rmse": [0.08, 0.09],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_noise_sensitivity_study(
+            dataframe,
+            metric="relative_l2_error",
+        )
+
+
+def test_noise_study_plot_rejects_negative_noise() -> None:
+    """Noise levels cannot be negative."""
+    dataframe = pd.DataFrame(
+        {
+            "noise_level": [-0.01, 0.02],
+            "relative_l2_error": [0.50, 0.53],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_noise_sensitivity_study(dataframe)        
