@@ -6,7 +6,9 @@ simple user-facing experiments.
 """
 
 from __future__ import annotations
+from collections.abc import Sequence
 
+import pandas as pd
 from dataclasses import dataclass
 from numbers import Integral, Real
 from time import perf_counter
@@ -492,3 +494,101 @@ def reconstruct_from_measurements(
         config=config,
         runtime=float(runtime),
     )
+def run_regularization_study(
+    alpha_values: Sequence[Real],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    num_sensors: int = 25,
+    noise_level: Real = 0.02,
+    seed: int | None = 42,
+) -> tuple[pd.DataFrame, list[ExperimentResult]]:
+    """Compare several Tikhonov regularization parameters.
+
+    The same source, sensor locations, and noisy measurements are used
+    for every alpha value so that the comparison remains fair.
+
+    Parameters
+    ----------
+    alpha_values:
+        Positive regularization parameters to evaluate.
+    grid_shape:
+        Number of grid points as ``(nx, ny)``.
+    domain:
+        Optional physical domain.
+    source_type:
+        Synthetic benchmark source type.
+    sensor_strategy:
+        Sensor placement strategy.
+    num_sensors:
+        Number of sparse temperature sensors.
+    noise_level:
+        Relative Gaussian measurement noise.
+    seed:
+        Master random seed.
+
+    Returns
+    -------
+    tuple[pandas.DataFrame, list[ExperimentResult]]
+        Study table and complete experiment results.
+    """
+    if isinstance(alpha_values, (str, bytes)):
+        raise ValidationError(
+            "alpha_values must be a sequence of numbers."
+        )
+
+    try:
+        alpha_list = list(alpha_values)
+    except TypeError as error:
+        raise ValidationError(
+            "alpha_values must be a sequence of numbers."
+        ) from error
+
+    if not alpha_list:
+        raise ValidationError(
+            "alpha_values must contain at least one value."
+        )
+
+    results: list[ExperimentResult] = []
+    rows: list[dict[str, Any]] = []
+
+    for alpha in alpha_list:
+        result = run_synthetic_benchmark(
+            grid_shape=grid_shape,
+            domain=domain,
+            source_type=source_type,
+            sensor_strategy=sensor_strategy,
+            num_sensors=num_sensors,
+            noise_level=noise_level,
+            alpha=alpha,
+            seed=seed,
+        )
+
+        results.append(result)
+
+        rows.append(
+            {
+                "study_type": "regularization",
+                "alpha": result.reconstruction.alpha,
+                "rmse": result.metrics["rmse"],
+                "mae": result.metrics["mae"],
+                "relative_l2_error": result.metrics[
+                    "relative_l2_error"
+                ],
+                "max_absolute_error": result.metrics[
+                    "max_absolute_error"
+                ],
+                "residual_norm": result.reconstruction.residual_norm,
+                "solution_norm": result.reconstruction.solution_norm,
+                "max_reconstructed_source": float(
+                    np.max(result.reconstructed_source)
+                ),
+                "runtime": result.runtime,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    return dataframe, results

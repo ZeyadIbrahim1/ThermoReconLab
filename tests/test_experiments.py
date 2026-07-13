@@ -2,7 +2,11 @@
 
 import numpy as np
 import pytest
-
+from thermoreconlab.experiments import (
+    ExperimentResult,
+    MeasurementReconstructionResult,
+    run_regularization_study,
+)
 from thermoreconlab import run_synthetic_benchmark
 from thermoreconlab.experiments import ExperimentResult
 from thermoreconlab.exceptions import ValidationError
@@ -371,3 +375,73 @@ def test_user_mode_rejects_invalid_sensor_data() -> None:
             np.ones((3, 3)),  # type: ignore[arg-type]
             grid_shape=(8, 8),
         )
+
+
+def test_regularization_study_returns_dataframe() -> None:
+    """The study should return one row per alpha value."""
+    alpha_values = [1e-4, 1e-5, 1e-6]
+
+    dataframe, results = run_regularization_study(
+        alpha_values,
+        grid_shape=(8, 8),
+        num_sensors=9,
+        seed=42,
+    )
+
+    assert len(dataframe) == len(alpha_values)
+    assert len(results) == len(alpha_values)
+
+    assert set(dataframe.columns) == {
+        "study_type",
+        "alpha",
+        "rmse",
+        "mae",
+        "relative_l2_error",
+        "max_absolute_error",
+        "residual_norm",
+        "solution_norm",
+        "max_reconstructed_source",
+        "runtime",
+    }
+
+
+def test_regularization_study_uses_same_measurements() -> None:
+    """Only alpha should change between study runs."""
+    _, results = run_regularization_study(
+        [1e-4, 1e-5],
+        grid_shape=(8, 8),
+        sensor_strategy="random",
+        num_sensors=9,
+        seed=17,
+    )
+
+    assert np.array_equal(
+        results[0].true_source,
+        results[1].true_source,
+    )
+
+    assert np.array_equal(
+        results[0].sensor_data_noisy.indices,
+        results[1].sensor_data_noisy.indices,
+    )
+
+    assert np.array_equal(
+        results[0].sensor_data_noisy.values,
+        results[1].sensor_data_noisy.values,
+    )
+
+
+def test_regularization_study_rejects_empty_values() -> None:
+    """At least one alpha value must be supplied."""
+    with pytest.raises(ValidationError):
+        run_regularization_study([])
+
+
+def test_regularization_study_rejects_invalid_alpha() -> None:
+    """Invalid alpha values should be rejected."""
+    with pytest.raises(ValidationError):
+        run_regularization_study(
+            [1e-4, 0.0],
+            grid_shape=(8, 8),
+            num_sensors=9,
+        )       
