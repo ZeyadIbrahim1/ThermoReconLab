@@ -390,22 +390,27 @@ def run_synthetic_benchmark(
 
     runtime = perf_counter() - start_time
 
+
+
+
     config: dict[str, Any] = {
-        "grid_shape": grid.shape,
-        "domain_size": grid.domain.size,
-        "source_type": _normalize_choice(
-            source_type,
-            "source_type",
-        ),
-        "sensor_strategy": _normalize_choice(
-            sensor_strategy,
-            "sensor_strategy",
-        ),
-        "num_sensors": int(num_sensors),
-        "noise_level": noise_value,
-        "alpha": float(reconstruction.alpha),
-        "seed": seed,
-    }
+    "mode": "synthetic_benchmark",
+    "grid_shape": grid.shape,
+    "domain_size": grid.domain.size,
+    "source_type": _normalize_choice(
+        source_type,
+        "source_type",
+    ),
+    "sensor_strategy": _normalize_choice(
+        sensor_strategy,
+        "sensor_strategy",
+    ),
+    "num_sensors": int(num_sensors),
+    "noise_level": noise_value,
+    "alpha": float(reconstruction.alpha),
+    "seed": seed,
+}
+
 
     return ExperimentResult(
         grid=grid,
@@ -495,6 +500,7 @@ def reconstruct_from_measurements(
         runtime=float(runtime),
     )
 def run_regularization_study(
+        
     alpha_values: Sequence[Real],
     *,
     grid_shape: tuple[int, int] = (30, 30),
@@ -585,6 +591,122 @@ def run_regularization_study(
                 "max_reconstructed_source": float(
                     np.max(result.reconstructed_source)
                 ),
+                "runtime": result.runtime,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    return dataframe, results
+
+
+def run_sensor_count_study(
+    sensor_counts: Sequence[int],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    noise_level: Real = 0.02,
+    alpha: Real = 1e-7,
+    seed: int | None = 42,
+) -> tuple[pd.DataFrame, list[ExperimentResult]]:
+    """Compare reconstruction quality for different sensor counts.
+
+    The same source configuration, noise level, regularization
+    parameter, and random seed are used for every run.
+
+    Parameters
+    ----------
+    sensor_counts:
+        Positive numbers of sensors to evaluate.
+    grid_shape:
+        Number of grid points as ``(nx, ny)``.
+    domain:
+        Optional physical domain.
+    source_type:
+        Synthetic source configuration.
+    sensor_strategy:
+        Sensor placement strategy.
+    noise_level:
+        Relative Gaussian measurement noise.
+    alpha:
+        Tikhonov regularization parameter.
+    seed:
+        Master random seed.
+
+    Returns
+    -------
+    tuple[pandas.DataFrame, list[ExperimentResult]]
+        Study table and complete benchmark results.
+    """
+    if isinstance(sensor_counts, (str, bytes)):
+        raise ValidationError(
+            "sensor_counts must be a sequence of positive integers."
+        )
+
+    try:
+        count_list = list(sensor_counts)
+    except TypeError as error:
+        raise ValidationError(
+            "sensor_counts must be a sequence of positive integers."
+        ) from error
+
+    if not count_list:
+        raise ValidationError(
+            "sensor_counts must contain at least one value."
+        )
+
+    validated_counts: list[int] = []
+
+    for count in count_list:
+        if (
+            isinstance(count, bool)
+            or not isinstance(count, (int, np.integer))
+            or int(count) <= 0
+        ):
+            raise ValidationError(
+                "Every sensor count must be a positive integer."
+            )
+
+        validated_counts.append(int(count))
+
+    results: list[ExperimentResult] = []
+    rows: list[dict[str, Any]] = []
+
+    for sensor_count in validated_counts:
+        result = run_synthetic_benchmark(
+            grid_shape=grid_shape,
+            domain=domain,
+            source_type=source_type,
+            sensor_strategy=sensor_strategy,
+            num_sensors=sensor_count,
+            noise_level=noise_level,
+            alpha=alpha,
+            seed=seed,
+        )
+
+        results.append(result)
+
+        actual_count = result.reconstruction.n_sensors
+
+        rows.append(
+            {
+                "study_type": "sensor_count",
+                "sensor_count": actual_count,
+                "sensor_fraction": (
+                    actual_count / result.grid.size
+                ),
+                "rmse": result.metrics["rmse"],
+                "mae": result.metrics["mae"],
+                "relative_l2_error": result.metrics[
+                    "relative_l2_error"
+                ],
+                "max_absolute_error": result.metrics[
+                    "max_absolute_error"
+                ],
+                "residual_norm": result.reconstruction.residual_norm,
+                "solution_norm": result.reconstruction.solution_norm,
                 "runtime": result.runtime,
             }
         )

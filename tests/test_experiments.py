@@ -10,7 +10,14 @@ from thermoreconlab.experiments import (
 from thermoreconlab import run_synthetic_benchmark
 from thermoreconlab.experiments import ExperimentResult
 from thermoreconlab.exceptions import ValidationError
-
+from thermoreconlab.experiments import (
+    ExperimentResult,
+    MeasurementReconstructionResult,
+    reconstruct_from_measurements,
+    run_regularization_study,
+    run_sensor_count_study,
+    run_synthetic_benchmark,
+)
 from thermoreconlab.experiments import (
     ExperimentResult,
     MeasurementReconstructionResult,
@@ -445,3 +452,92 @@ def test_regularization_study_rejects_invalid_alpha() -> None:
             grid_shape=(8, 8),
             num_sensors=9,
         )       
+
+def test_sensor_count_study_returns_dataframe() -> None:
+    """The study should return one result per sensor count."""
+    sensor_counts = [4, 9, 16]
+
+    dataframe, results = run_sensor_count_study(
+        sensor_counts,
+        grid_shape=(10, 10),
+        sensor_strategy="random",
+        noise_level=0.01,
+        seed=42,
+    )
+
+    assert len(dataframe) == len(sensor_counts)
+    assert len(results) == len(sensor_counts)
+
+    assert dataframe["sensor_count"].tolist() == sensor_counts
+
+    assert set(dataframe.columns) == {
+        "study_type",
+        "sensor_count",
+        "sensor_fraction",
+        "rmse",
+        "mae",
+        "relative_l2_error",
+        "max_absolute_error",
+        "residual_norm",
+        "solution_norm",
+        "runtime",
+    }
+
+
+def test_sensor_count_study_uses_same_true_source() -> None:
+    """Changing sensor count should not change the true source."""
+    _, results = run_sensor_count_study(
+        [4, 9],
+        grid_shape=(10, 10),
+        sensor_strategy="random",
+        seed=17,
+    )
+
+    assert np.array_equal(
+        results[0].true_source,
+        results[1].true_source,
+    )
+
+
+def test_sensor_count_study_uses_requested_counts() -> None:
+    """Each reconstruction should use its requested sensor count."""
+    sensor_counts = [5, 10]
+
+    _, results = run_sensor_count_study(
+        sensor_counts,
+        grid_shape=(10, 10),
+        sensor_strategy="random",
+        seed=42,
+    )
+
+    actual_counts = [
+        result.reconstruction.n_sensors
+        for result in results
+    ]
+
+    assert actual_counts == sensor_counts
+
+
+def test_sensor_count_study_rejects_empty_values() -> None:
+    """At least one sensor count must be supplied."""
+    with pytest.raises(ValidationError):
+        run_sensor_count_study([])
+
+
+@pytest.mark.parametrize(
+    "invalid_counts",
+    [
+        [0, 4],
+        [-1, 4],
+        [4, 2.5],
+        [4, True],
+    ],
+)
+def test_sensor_count_study_rejects_invalid_counts(
+    invalid_counts: list[object],
+) -> None:
+    """Sensor counts must be positive integers."""
+    with pytest.raises(ValidationError):
+        run_sensor_count_study(
+            invalid_counts,  # type: ignore[arg-type]
+        )        
