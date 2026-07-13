@@ -714,3 +714,116 @@ def run_sensor_count_study(
     dataframe = pd.DataFrame(rows)
 
     return dataframe, results
+
+
+def run_noise_sensitivity_study(
+    noise_levels: Sequence[Real],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    num_sensors: int = 25,
+    alpha: Real = 1e-7,
+    seed: int | None = 42,
+) -> tuple[pd.DataFrame, list[ExperimentResult]]:
+    """Compare reconstruction quality at different noise levels.
+
+    The same true source, sensor locations, and random-noise pattern
+    are used for every run. Only the noise magnitude changes.
+
+    Parameters
+    ----------
+    noise_levels:
+        Nonnegative relative Gaussian noise levels.
+    grid_shape:
+        Number of grid points as ``(nx, ny)``.
+    domain:
+        Optional physical domain.
+    source_type:
+        Synthetic benchmark source type.
+    sensor_strategy:
+        Sensor placement strategy.
+    num_sensors:
+        Number of sparse temperature sensors.
+    alpha:
+        Tikhonov regularization parameter.
+    seed:
+        Master random seed.
+
+    Returns
+    -------
+    tuple[pandas.DataFrame, list[ExperimentResult]]
+        Study table and complete benchmark results.
+    """
+    if isinstance(noise_levels, (str, bytes)):
+        raise ValidationError(
+            "noise_levels must be a sequence of nonnegative numbers."
+        )
+
+    try:
+        level_list = list(noise_levels)
+    except TypeError as error:
+        raise ValidationError(
+            "noise_levels must be a sequence of nonnegative numbers."
+        ) from error
+
+    if not level_list:
+        raise ValidationError(
+            "noise_levels must contain at least one value."
+        )
+
+    validated_levels = [
+        _validate_nonnegative_real(level, "noise level")
+        for level in level_list
+    ]
+
+    results: list[ExperimentResult] = []
+    rows: list[dict[str, Any]] = []
+
+    for noise_level in validated_levels:
+        result = run_synthetic_benchmark(
+            grid_shape=grid_shape,
+            domain=domain,
+            source_type=source_type,
+            sensor_strategy=sensor_strategy,
+            num_sensors=num_sensors,
+            noise_level=noise_level,
+            alpha=alpha,
+            seed=seed,
+        )
+
+        measurement_difference = (
+            result.sensor_data_noisy.values
+            - result.sensor_data_clean.values
+        )
+
+        results.append(result)
+
+        rows.append(
+            {
+                "study_type": "noise_sensitivity",
+                "noise_level": noise_level,
+                "measurement_noise_norm": float(
+                    np.linalg.norm(measurement_difference)
+                ),
+                "mean_absolute_measurement_noise": float(
+                    np.mean(np.abs(measurement_difference))
+                ),
+                "rmse": result.metrics["rmse"],
+                "mae": result.metrics["mae"],
+                "relative_l2_error": result.metrics[
+                    "relative_l2_error"
+                ],
+                "max_absolute_error": result.metrics[
+                    "max_absolute_error"
+                ],
+                "residual_norm": result.reconstruction.residual_norm,
+                "solution_norm": result.reconstruction.solution_norm,
+                "runtime": result.runtime,
+            }
+        )
+
+    dataframe = pd.DataFrame(rows)
+
+    return dataframe, results

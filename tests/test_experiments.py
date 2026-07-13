@@ -7,6 +7,16 @@ from thermoreconlab.experiments import (
     MeasurementReconstructionResult,
     run_regularization_study,
 )
+
+from thermoreconlab.experiments import (
+    ExperimentResult,
+    MeasurementReconstructionResult,
+    reconstruct_from_measurements,
+    run_noise_sensitivity_study,
+    run_regularization_study,
+    run_sensor_count_study,
+    run_synthetic_benchmark,
+)
 from thermoreconlab import run_synthetic_benchmark
 from thermoreconlab.experiments import ExperimentResult
 from thermoreconlab.exceptions import ValidationError
@@ -541,3 +551,105 @@ def test_sensor_count_study_rejects_invalid_counts(
         run_sensor_count_study(
             invalid_counts,  # type: ignore[arg-type]
         )        
+
+
+def test_noise_sensitivity_study_returns_dataframe() -> None:
+    """The study should return one result per noise level."""
+    noise_levels = [0.0, 0.01, 0.05]
+
+    dataframe, results = run_noise_sensitivity_study(
+        noise_levels,
+        grid_shape=(10, 10),
+        num_sensors=16,
+        seed=42,
+    )
+
+    assert len(dataframe) == len(noise_levels)
+    assert len(results) == len(noise_levels)
+
+    assert dataframe["noise_level"].tolist() == noise_levels
+
+    assert set(dataframe.columns) == {
+        "study_type",
+        "noise_level",
+        "measurement_noise_norm",
+        "mean_absolute_measurement_noise",
+        "rmse",
+        "mae",
+        "relative_l2_error",
+        "max_absolute_error",
+        "residual_norm",
+        "solution_norm",
+        "runtime",
+    }
+
+
+def test_noise_study_uses_same_source_and_sensors() -> None:
+    """Only the measurement-noise magnitude should change."""
+    _, results = run_noise_sensitivity_study(
+        [0.0, 0.02],
+        grid_shape=(10, 10),
+        sensor_strategy="random",
+        num_sensors=12,
+        seed=17,
+    )
+
+    assert np.array_equal(
+        results[0].true_source,
+        results[1].true_source,
+    )
+
+    assert np.array_equal(
+        results[0].sensor_data_clean.indices,
+        results[1].sensor_data_clean.indices,
+    )
+
+    assert np.array_equal(
+        results[0].sensor_data_clean.values,
+        results[1].sensor_data_clean.values,
+    )
+
+
+def test_noise_study_zero_level_preserves_measurements() -> None:
+    """Zero noise should leave the sensor values unchanged."""
+    dataframe, results = run_noise_sensitivity_study(
+        [0.0],
+        grid_shape=(10, 10),
+        num_sensors=16,
+        seed=42,
+    )
+
+    assert np.array_equal(
+        results[0].sensor_data_clean.values,
+        results[0].sensor_data_noisy.values,
+    )
+
+    assert dataframe.loc[0, "measurement_noise_norm"] == pytest.approx(
+        0.0
+    )
+
+
+def test_noise_study_rejects_empty_values() -> None:
+    """At least one noise level must be supplied."""
+    with pytest.raises(ValidationError):
+        run_noise_sensitivity_study([])
+
+
+@pytest.mark.parametrize(
+    "invalid_levels",
+    [
+        [-0.01, 0.02],
+        [0.01, float("nan")],
+        [0.01, float("inf")],
+        [0.01, True],
+    ],
+)
+def test_noise_study_rejects_invalid_levels(
+    invalid_levels: list[object],
+) -> None:
+    """Noise levels must be finite nonnegative numbers."""
+    with pytest.raises(ValidationError):
+        run_noise_sensitivity_study(
+            invalid_levels,  # type: ignore[arg-type]
+        )
+                
