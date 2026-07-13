@@ -1,9 +1,28 @@
 """Tests for ThermoReconLab visualizations."""
 
 import matplotlib
-
+import pandas as pd
 matplotlib.use("Agg")
+from thermoreconlab.visualization import (
+    plot_error_map,
+    plot_heatmap,
+    plot_regularization_study,
+    plot_sensor_layout,
+    plot_sensor_measurements,
+    plot_source,
+    plot_temperature,
+)
 
+from thermoreconlab.visualization import (
+    plot_error_map,
+    plot_heatmap,
+    plot_regularization_study,
+    plot_sensor_count_study,
+    plot_sensor_layout,
+    plot_sensor_measurements,
+    plot_source,
+    plot_temperature,
+)
 import matplotlib.pyplot as plt
 import numpy as np
 import pytest
@@ -189,3 +208,130 @@ def test_plot_function_accepts_existing_axis() -> None:
 
     assert returned_figure is figure
     assert returned_axis is axis
+def test_regularization_plot_returns_log_axis() -> None:
+    """Regularization results should be plotted on a log alpha axis."""
+    dataframe = pd.DataFrame(
+        {
+            "alpha": [1e-3, 1e-4, 1e-5],
+            "relative_l2_error": [0.9, 0.7, 0.6],
+        }
+    )
+
+    figure, axis = plot_regularization_study(dataframe)
+
+    assert isinstance(figure, Figure)
+    assert isinstance(axis, Axes)
+    assert axis.get_xscale() == "log"
+    assert len(axis.lines) == 1
+
+
+def test_regularization_plot_sorts_alpha_values() -> None:
+    """Alpha values should appear in ascending numerical order."""
+    dataframe = pd.DataFrame(
+        {
+            "alpha": [1e-3, 1e-5, 1e-4],
+            "relative_l2_error": [0.9, 0.6, 0.7],
+        }
+    )
+
+    _, axis = plot_regularization_study(dataframe)
+
+    plotted_alpha = axis.lines[0].get_xdata()
+
+    assert np.array_equal(
+        plotted_alpha,
+        np.array([1e-5, 1e-4, 1e-3]),
+    )
+
+
+def test_regularization_plot_rejects_missing_metric() -> None:
+    """The selected metric must exist in the DataFrame."""
+    dataframe = pd.DataFrame(
+        {
+            "alpha": [1e-3, 1e-4],
+            "rmse": [0.2, 0.1],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_regularization_study(
+            dataframe,
+            metric="relative_l2_error",
+        )
+
+
+def test_regularization_plot_rejects_nonpositive_alpha() -> None:
+    """Alpha values must remain positive."""
+    dataframe = pd.DataFrame(
+        {
+            "alpha": [1e-3, 0.0],
+            "relative_l2_error": [0.8, 0.6],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_regularization_study(dataframe)
+
+def test_sensor_count_plot_returns_figure_and_axis() -> None:
+    """Sensor-count results should produce a line plot."""
+    dataframe = pd.DataFrame(
+        {
+            "sensor_count": [4, 9, 16],
+            "relative_l2_error": [0.9, 0.7, 0.5],
+        }
+    )
+
+    figure, axis = plot_sensor_count_study(dataframe)
+
+    assert isinstance(figure, Figure)
+    assert isinstance(axis, Axes)
+    assert len(axis.lines) == 1
+    assert axis.get_xlabel() == "Number of sensors"
+
+
+def test_sensor_count_plot_sorts_counts() -> None:
+    """Sensor counts should be plotted in ascending order."""
+    dataframe = pd.DataFrame(
+        {
+            "sensor_count": [16, 4, 9],
+            "relative_l2_error": [0.5, 0.9, 0.7],
+        }
+    )
+
+    _, axis = plot_sensor_count_study(dataframe)
+
+    plotted_counts = axis.lines[0].get_xdata()
+
+    assert np.array_equal(
+        plotted_counts,
+        np.array([4.0, 9.0, 16.0]),
+    )
+
+
+def test_sensor_count_plot_rejects_missing_metric() -> None:
+    """The selected metric must exist in the DataFrame."""
+    dataframe = pd.DataFrame(
+        {
+            "sensor_count": [4, 9],
+            "rmse": [0.2, 0.1],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_sensor_count_study(
+            dataframe,
+            metric="relative_l2_error",
+        )
+
+
+def test_sensor_count_plot_rejects_nonpositive_count() -> None:
+    """Sensor counts must be positive."""
+    dataframe = pd.DataFrame(
+        {
+            "sensor_count": [0, 9],
+            "relative_l2_error": [0.9, 0.7],
+        }
+    )
+
+    with pytest.raises(ValidationError):
+        plot_sensor_count_study(dataframe)        

@@ -3,10 +3,10 @@
 This module contains a small set of reusable Matplotlib functions for
 two-dimensional fields, reconstruction errors, and sparse sensors.
 """
-
 from __future__ import annotations
 
 from typing import Final
+import pandas as pd
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -308,5 +308,239 @@ def plot_sensor_measurements(
     axis.set_ylabel("y")
     axis.set_aspect("equal")
     axis.set_title(title)
+
+    return figure, axis
+def plot_regularization_study(
+    dataframe: pd.DataFrame,
+    *,
+    metric: str = "relative_l2_error",
+    title: str = "Regularization parameter study",
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
+    """Plot reconstruction error against the regularization parameter.
+
+    Parameters
+    ----------
+    dataframe:
+        Study results returned by ``run_regularization_study``.
+    metric:
+        DataFrame column to display on the vertical axis.
+    title:
+        Plot title.
+    ax:
+        Optional Matplotlib axis.
+
+    Returns
+    -------
+    tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+        Figure and axis containing the plot.
+
+    Raises
+    ------
+    ValidationError
+        If the DataFrame is empty, required columns are missing, or
+        alpha and metric values are invalid.
+    """
+    if not isinstance(dataframe, pd.DataFrame):
+        raise ValidationError(
+            "dataframe must be a pandas DataFrame."
+        )
+
+    if dataframe.empty:
+        raise ValidationError(
+            "dataframe must contain at least one result."
+        )
+
+    if not isinstance(metric, str) or not metric.strip():
+        raise ValidationError(
+            "metric must be a non-empty string."
+        )
+
+    required_columns = {"alpha", metric}
+    missing_columns = required_columns.difference(
+        dataframe.columns
+    )
+
+    if missing_columns:
+        raise ValidationError(
+            "Regularization study data is missing columns: "
+            f"{sorted(missing_columns)}."
+        )
+
+    try:
+        alpha_values = dataframe["alpha"].to_numpy(
+            dtype=float
+        )
+        metric_values = dataframe[metric].to_numpy(
+            dtype=float
+        )
+    except (TypeError, ValueError) as error:
+        raise ValidationError(
+            "alpha and metric columns must contain numeric values."
+        ) from error
+
+    if not np.all(np.isfinite(alpha_values)):
+        raise ValidationError(
+            "alpha values must be finite."
+        )
+
+    if np.any(alpha_values <= 0.0):
+        raise ValidationError(
+            "alpha values must be greater than zero."
+        )
+
+    if not np.all(np.isfinite(metric_values)):
+        raise ValidationError(
+            f"{metric} values must be finite."
+        )
+
+    order = np.argsort(alpha_values)
+    alpha_values = alpha_values[order]
+    metric_values = metric_values[order]
+
+    figure, axis = _prepare_axes(ax)
+
+    axis.plot(
+        alpha_values,
+        metric_values,
+        marker="o",
+    )
+
+    best_index = int(np.argmin(metric_values))
+    best_alpha = alpha_values[best_index]
+    best_metric = metric_values[best_index]
+
+    axis.scatter(
+        [best_alpha],
+        [best_metric],
+        marker="*",
+        s=140,
+        label=f"Best α = {best_alpha:.1e}",
+    )
+
+    axis.set_xscale("log")
+    axis.set_xlabel("Regularization parameter α")
+    axis.set_ylabel(
+        metric.replace("_", " ").title()
+    )
+    axis.set_title(title)
+    axis.grid(True, which="both", linestyle=":")
+    axis.legend()
+
+    return figure, axis
+def plot_sensor_count_study(
+    dataframe: pd.DataFrame,
+    *,
+    metric: str = "relative_l2_error",
+    title: str = "Sensor-count study",
+    ax: Axes | None = None,
+) -> tuple[Figure, Axes]:
+    """Plot reconstruction quality against the number of sensors.
+
+    Parameters
+    ----------
+    dataframe:
+        Results returned by ``run_sensor_count_study``.
+    metric:
+        DataFrame column displayed on the vertical axis.
+    title:
+        Plot title.
+    ax:
+        Optional existing Matplotlib axis.
+
+    Returns
+    -------
+    tuple[matplotlib.figure.Figure, matplotlib.axes.Axes]
+        Figure and axis containing the study plot.
+    """
+    if not isinstance(dataframe, pd.DataFrame):
+        raise ValidationError(
+            "dataframe must be a pandas DataFrame."
+        )
+
+    if dataframe.empty:
+        raise ValidationError(
+            "dataframe must contain at least one result."
+        )
+
+    if not isinstance(metric, str) or not metric.strip():
+        raise ValidationError(
+            "metric must be a non-empty string."
+        )
+
+    required_columns = {"sensor_count", metric}
+    missing_columns = required_columns.difference(
+        dataframe.columns
+    )
+
+    if missing_columns:
+        raise ValidationError(
+            "Sensor-count study data is missing columns: "
+            f"{sorted(missing_columns)}."
+        )
+
+    try:
+        sensor_counts = dataframe["sensor_count"].to_numpy(
+            dtype=float
+        )
+        metric_values = dataframe[metric].to_numpy(
+            dtype=float
+        )
+    except (TypeError, ValueError) as error:
+        raise ValidationError(
+            "sensor_count and metric columns must be numeric."
+        ) from error
+
+    if not np.all(np.isfinite(sensor_counts)):
+        raise ValidationError(
+            "sensor_count values must be finite."
+        )
+
+    if np.any(sensor_counts <= 0.0):
+        raise ValidationError(
+            "sensor_count values must be greater than zero."
+        )
+
+    if not np.allclose(sensor_counts, np.round(sensor_counts)):
+        raise ValidationError(
+            "sensor_count values must be integers."
+        )
+
+    if not np.all(np.isfinite(metric_values)):
+        raise ValidationError(
+            f"{metric} values must be finite."
+        )
+
+    order = np.argsort(sensor_counts)
+    sensor_counts = sensor_counts[order]
+    metric_values = metric_values[order]
+
+    figure, axis = _prepare_axes(ax)
+
+    axis.plot(
+        sensor_counts,
+        metric_values,
+        marker="o",
+    )
+
+    best_index = int(np.argmin(metric_values))
+    best_count = int(sensor_counts[best_index])
+    best_metric = metric_values[best_index]
+
+    axis.scatter(
+        [best_count],
+        [best_metric],
+        marker="*",
+        s=140,
+        label=f"Best count = {best_count}",
+    )
+
+    axis.set_xlabel("Number of sensors")
+    axis.set_ylabel(
+        metric.replace("_", " ").title()
+    )
+    axis.set_title(title)
+    axis.grid(True, linestyle=":")
+    axis.legend()
 
     return figure, axis
