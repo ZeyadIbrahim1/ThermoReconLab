@@ -7,7 +7,27 @@ from thermoreconlab import run_synthetic_benchmark
 from thermoreconlab.experiments import ExperimentResult
 from thermoreconlab.exceptions import ValidationError
 
+from thermoreconlab.experiments import (
+    ExperimentResult,
+    MeasurementReconstructionResult,
+)
 
+from thermoreconlab.core.grid import Grid2D
+from thermoreconlab.data import gaussian_source
+from thermoreconlab.reconstruction import (
+    reconstruct_tikhonov,
+    solve_forward,
+)
+from thermoreconlab.sensors import (
+    SensorData,
+    create_sensor_data,
+    regular_grid_sensors,
+)
+
+from thermoreconlab import (
+    reconstruct_from_measurements,
+    run_synthetic_benchmark,
+)
 def test_synthetic_benchmark_returns_experiment_result() -> None:
     result = run_synthetic_benchmark(
         grid_shape=(9, 10),
@@ -230,4 +250,124 @@ def test_benchmark_rejects_invalid_noise_level(
             grid_shape=(8, 8),
             num_sensors=9,
             noise_level=invalid_noise,  # type: ignore[arg-type]
+        )
+
+
+def create_example_measurements() -> tuple[Grid2D, SensorData]:
+    """Create deterministic measurements for user-mode tests."""
+    grid = Grid2D(nx=9, ny=9)
+
+    source = gaussian_source(
+        grid,
+        center=(0.5, 0.5),
+        sigma=0.12,
+    )
+
+    temperature = solve_forward(source, grid)
+    indices = regular_grid_sensors(grid, count=12)
+
+    sensor_data = create_sensor_data(
+        temperature,
+        indices,
+        grid,
+    )
+
+    return grid, sensor_data
+
+
+def test_reconstruct_from_measurements_returns_result() -> None:
+    """User measurements should produce a structured result."""
+    grid, sensor_data = create_example_measurements()
+
+    result = reconstruct_from_measurements(
+        sensor_data,
+        grid_shape=grid.shape,
+        alpha=1e-4,
+    )
+
+    assert isinstance(
+        result,
+        MeasurementReconstructionResult,
+    )
+    assert result.grid.shape == grid.shape
+    assert result.reconstructed_source.shape == grid.shape
+    assert result.reconstruction.n_sensors == len(sensor_data)
+    assert result.runtime >= 0.0
+
+
+def test_user_mode_matches_direct_inverse_solver() -> None:
+    """The high-level workflow should use the same inverse solver."""
+    grid, sensor_data = create_example_measurements()
+
+    workflow_result = reconstruct_from_measurements(
+        sensor_data,
+        grid_shape=grid.shape,
+        alpha=1e-4,
+    )
+
+    direct_result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+    )
+
+    assert np.allclose(
+        workflow_result.reconstructed_source,
+        direct_result.source,
+    )
+
+    assert (
+        workflow_result.reconstruction.residual_norm
+        == pytest.approx(direct_result.residual_norm)
+    )
+
+
+def test_user_result_summary_contains_no_ground_truth_metrics() -> None:
+    """Real-data results should not claim unavailable accuracy metrics."""
+    grid, sensor_data = create_example_measurements()
+
+    result = reconstruct_from_measurements(
+        sensor_data,
+        grid_shape=grid.shape,
+    )
+
+    summary = result.to_dict()
+
+    assert set(summary) == {
+        "config",
+        "runtime",
+        "reconstruction",
+    }
+
+    assert summary["config"]["mode"] == "user_measurements"
+    assert summary["config"]["num_sensors"] == len(sensor_data)
+    assert "metrics" not in summary
+    assert "true_source" not in summary
+
+
+def test_user_mode_rejects_out_of_range_sensor_indices() -> None:
+    """Sensor indices must be valid for the requested grid."""
+    sensor_data = SensorData(
+        indices=np.array(
+            [
+                [1, 1],
+                [8, 3],
+            ]
+        ),
+        values=np.array([0.1, 0.2]),
+    )
+
+    with pytest.raises(ValidationError):
+        reconstruct_from_measurements(
+            sensor_data,
+            grid_shape=(8, 8),
+        )
+
+
+def test_user_mode_rejects_invalid_sensor_data() -> None:
+    """The public workflow requires a SensorData object."""
+    with pytest.raises(ValidationError):
+        reconstruct_from_measurements(
+            np.ones((3, 3)),  # type: ignore[arg-type]
+            grid_shape=(8, 8),
         )

@@ -77,7 +77,43 @@ class ExperimentResult:
             },
         }
 
+@dataclass(frozen=True, slots=True)
+class MeasurementReconstructionResult:
+    """Store a reconstruction produced from user measurements.
 
+    Unlike a synthetic benchmark result, this object does not contain
+    a true source or ground-truth error metrics.
+    """
+
+    grid: Grid2D
+    sensor_data: SensorData
+    reconstruction: ReconstructionResult
+    config: dict[str, Any]
+    runtime: float
+
+    @property
+    def reconstructed_source(self) -> NDArray[np.float64]:
+        """Return the reconstructed heat-source field."""
+        return self.reconstruction.source
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a compact serializable reconstruction summary."""
+        return {
+            "config": dict(self.config),
+            "runtime": float(self.runtime),
+            "reconstruction": {
+                "alpha": float(self.reconstruction.alpha),
+                "residual_norm": float(
+                    self.reconstruction.residual_norm
+                ),
+                "solution_norm": float(
+                    self.reconstruction.solution_norm
+                ),
+                "runtime": float(self.reconstruction.runtime),
+                "n_sensors": int(self.reconstruction.n_sensors),
+            },
+        }
+    
 def _validate_grid_shape(
     grid_shape: tuple[int, int],
 ) -> tuple[int, int]:
@@ -377,6 +413,82 @@ def run_synthetic_benchmark(
         sensor_data_noisy=sensor_data_noisy,
         reconstruction=reconstruction,
         metrics=metrics,
+        config=config,
+        runtime=float(runtime),
+    )
+def reconstruct_from_measurements(
+    sensor_data: SensorData,
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    alpha: Real = 1e-3,
+) -> MeasurementReconstructionResult:
+    """Reconstruct a heat source from user-provided measurements.
+
+    The supplied sensor indices are interpreted on the requested grid.
+    No synthetic source is generated and no ground-truth source-error
+    metrics are calculated.
+
+    Parameters
+    ----------
+    sensor_data:
+        User-provided grid indices and measured temperatures.
+    grid_shape:
+        Number of grid points as ``(nx, ny)``.
+    domain:
+        Optional physical domain. The unit square is used by default.
+    alpha:
+        Positive Tikhonov regularization parameter.
+
+    Returns
+    -------
+    MeasurementReconstructionResult
+        Reconstructed source, grid, measurements, and diagnostics.
+    """
+    if not isinstance(sensor_data, SensorData):
+        raise ValidationError(
+            "sensor_data must be a SensorData object."
+        )
+
+    nx, ny = _validate_grid_shape(grid_shape)
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    start_time = perf_counter()
+
+    grid = Grid2D(
+        nx=nx,
+        ny=ny,
+        domain=selected_domain,
+    )
+
+    reconstruction = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=alpha,
+    )
+
+    runtime = perf_counter() - start_time
+
+    config: dict[str, Any] = {
+        "mode": "user_measurements",
+        "grid_shape": grid.shape,
+        "domain_size": grid.domain.size,
+        "num_sensors": len(sensor_data),
+        "alpha": float(reconstruction.alpha),
+    }
+
+    return MeasurementReconstructionResult(
+        grid=grid,
+        sensor_data=sensor_data,
+        reconstruction=reconstruction,
         config=config,
         runtime=float(runtime),
     )
