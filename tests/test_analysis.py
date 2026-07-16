@@ -7,6 +7,7 @@ import pytest
 from numpy.typing import ArrayLike
 
 from thermoreconlab.analysis import (
+    analyze_observation_matrix,
     compute_all_metrics,
     compute_error_field,
     mae,
@@ -356,3 +357,133 @@ def test_metrics_reject_non_finite_values(
 
     with pytest.raises(ValidationError):
         mae(true_values, predicted_values)
+
+
+def test_observation_diagnostics_for_simple_diagonal_matrix() -> None:
+    matrix = np.array(
+        [
+            [3.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ]
+    )
+
+    diagnostics = analyze_observation_matrix(matrix)
+
+    assert np.array_equal(
+        diagnostics["singular_values"],
+        np.array([3.0, 1.0]),
+    )
+    assert diagnostics["shape"] == (2, 3)
+    assert diagnostics["number_of_measurements"] == 2
+    assert diagnostics["number_of_unknowns"] == 3
+    assert diagnostics["numerical_rank"] == 2
+    assert diagnostics["nullity"] == 1
+    assert diagnostics["underdetermined"] is True
+    assert diagnostics["measurement_to_unknown_ratio"] == pytest.approx(
+        2.0 / 3.0
+    )
+    assert diagnostics["smallest_resolved_singular_value"] == 1.0
+    assert diagnostics["effective_condition_number"] == 3.0
+
+
+def test_observation_diagnostics_uses_default_rank_tolerance() -> None:
+    matrix = np.diag([4.0, 2.0])
+
+    diagnostics = analyze_observation_matrix(matrix)
+    expected = 2 * np.finfo(float).eps * 4.0
+
+    assert diagnostics["rank_tolerance"] == pytest.approx(expected)
+
+
+def test_observation_diagnostics_accepts_custom_tolerance() -> None:
+    matrix = np.array(
+        [
+            [3.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0],
+        ]
+    )
+
+    diagnostics = analyze_observation_matrix(
+        matrix,
+        tolerance=1.5,
+    )
+
+    assert diagnostics["rank_tolerance"] == 1.5
+    assert diagnostics["numerical_rank"] == 1
+    assert diagnostics["nullity"] == 2
+    assert diagnostics["smallest_resolved_singular_value"] == 3.0
+    assert diagnostics["effective_condition_number"] == 1.0
+
+
+@pytest.mark.parametrize(
+    "invalid_tolerance",
+    [-1.0, float("nan"), float("inf"), True],
+)
+def test_observation_diagnostics_rejects_invalid_tolerance(
+    invalid_tolerance: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        analyze_observation_matrix(
+            np.eye(2),
+            tolerance=invalid_tolerance,  # type: ignore[arg-type]
+        )
+
+
+def test_observation_diagnostics_handles_zero_matrix() -> None:
+    diagnostics = analyze_observation_matrix(np.zeros((2, 3)))
+
+    assert np.array_equal(
+        diagnostics["singular_values"],
+        np.zeros(2),
+    )
+    assert diagnostics["rank_tolerance"] == 0.0
+    assert diagnostics["numerical_rank"] == 0
+    assert diagnostics["nullity"] == 3
+    assert diagnostics["largest_singular_value"] == 0.0
+    assert diagnostics["smallest_resolved_singular_value"] == 0.0
+    assert np.isinf(diagnostics["effective_condition_number"])
+
+
+@pytest.mark.parametrize(
+    "invalid_matrix",
+    [
+        1.0,
+        np.ones(3),
+        np.ones((2, 2, 2)),
+        np.empty((0, 3)),
+        np.empty((3, 0)),
+    ],
+)
+def test_observation_diagnostics_rejects_invalid_dimensions(
+    invalid_matrix: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        analyze_observation_matrix(invalid_matrix)
+
+
+def test_observation_diagnostics_rejects_nonnumeric_input() -> None:
+    with pytest.raises(ValidationError):
+        analyze_observation_matrix([["invalid"]])
+
+
+@pytest.mark.parametrize(
+    "invalid_value",
+    [float("nan"), float("inf"), float("-inf")],
+)
+def test_observation_diagnostics_rejects_nonfinite_values(
+    invalid_value: float,
+) -> None:
+    matrix = np.eye(2)
+    matrix[0, 0] = invalid_value
+
+    with pytest.raises(ValidationError):
+        analyze_observation_matrix(matrix)
+
+
+def test_observation_diagnostics_does_not_modify_input() -> None:
+    matrix = np.array([[1.0, 2.0], [3.0, 4.0]])
+    original = matrix.copy()
+
+    analyze_observation_matrix(matrix)
+
+    assert np.array_equal(matrix, original)

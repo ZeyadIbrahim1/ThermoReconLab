@@ -32,6 +32,8 @@ from thermoreconlab.data import (
 from thermoreconlab.exceptions import ValidationError
 from thermoreconlab.reconstruction import (
     ReconstructionResult,
+    reconstruct_compact_nonnegative,
+    reconstruct_smooth_tikhonov,
     reconstruct_tikhonov,
     solve_forward,
 )
@@ -235,6 +237,222 @@ def _validate_seed_values(seeds: Sequence[int]) -> list[int]:
         validated_seeds.append(integer_seed)
 
     return validated_seeds
+
+
+def _validate_positive_real(
+    value: Real,
+    name: str,
+) -> float:
+    """Validate a finite positive real parameter."""
+    result = _validate_nonnegative_real(value, name)
+
+    if result == 0.0:
+        raise ValidationError(f"{name} must be greater than zero.")
+
+    return result
+
+
+def _validate_compact_parameter_values(
+    values: Sequence[Real],
+    name: str,
+    *,
+    positive: bool,
+) -> list[float]:
+    """Validate and copy one compact-study parameter sequence."""
+    if isinstance(values, (str, bytes)):
+        raise ValidationError(
+            f"{name} must be a sequence of real numbers."
+        )
+
+    try:
+        value_list = list(values)
+    except TypeError as error:
+        raise ValidationError(
+            f"{name} must be a sequence of real numbers."
+        ) from error
+
+    if not value_list:
+        raise ValidationError(
+            f"{name} must contain at least one value."
+        )
+
+    validated: list[float] = []
+
+    for value in value_list:
+        if isinstance(value, bool) or not isinstance(value, Real):
+            raise ValidationError(
+                f"Every value in {name} must be a real number."
+            )
+
+        numeric_value = float(value)
+
+        if not np.isfinite(numeric_value):
+            raise ValidationError(
+                f"Every value in {name} must be finite."
+            )
+
+        if positive and numeric_value <= 0.0:
+            raise ValidationError(
+                f"Every value in {name} must be positive."
+            )
+
+        if not positive and numeric_value < 0.0:
+            raise ValidationError(
+                f"Every value in {name} must be nonnegative."
+            )
+
+        validated.append(numeric_value)
+
+    if len(set(validated)) != len(validated):
+        raise ValidationError(
+            f"{name} must not contain duplicate values."
+        )
+
+    return validated
+
+
+def _validate_positive_integer(value: int, name: str) -> int:
+    """Validate a positive integer experiment parameter."""
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise ValidationError(f"{name} must be a positive integer.")
+
+    integer_value = int(value)
+
+    if integer_value <= 0:
+        raise ValidationError(f"{name} must be a positive integer.")
+
+    return integer_value
+
+
+def _validate_method_study_seeds(
+    seeds: Sequence[int],
+) -> list[int]:
+    """Validate and copy unique method-study run seeds."""
+    validated = _validate_seed_values(seeds)
+
+    if len(set(validated)) != len(validated):
+        raise ValidationError("seeds must not contain duplicates.")
+
+    return validated
+
+
+def _validate_method_study_sensor_counts(
+    sensor_counts: Sequence[int],
+    maximum: int,
+) -> list[int]:
+    """Validate and copy unique positive sensor counts."""
+    if isinstance(sensor_counts, (str, bytes)):
+        raise ValidationError(
+            "sensor_counts must be a sequence of positive integers."
+        )
+
+    try:
+        count_list = list(sensor_counts)
+    except TypeError as error:
+        raise ValidationError(
+            "sensor_counts must be a sequence of positive integers."
+        ) from error
+
+    if not count_list:
+        raise ValidationError(
+            "sensor_counts must contain at least one value."
+        )
+
+    validated: list[int] = []
+
+    for count in count_list:
+        if isinstance(count, bool) or not isinstance(count, Integral):
+            raise ValidationError(
+                "Every sensor count must be a positive integer."
+            )
+
+        integer_count = int(count)
+
+        if integer_count <= 0:
+            raise ValidationError(
+                "Every sensor count must be a positive integer."
+            )
+
+        if integer_count > maximum:
+            raise ValidationError(
+                "sensor counts cannot exceed the number of interior "
+                f"grid points ({maximum})."
+            )
+
+        validated.append(integer_count)
+
+    if len(set(validated)) != len(validated):
+        raise ValidationError(
+            "sensor_counts must not contain duplicates."
+        )
+
+    return validated
+
+
+def _validate_sensor_strategies(
+    strategies: Sequence[str],
+) -> list[str]:
+    """Validate and normalize sensor-layout study strategies."""
+    if isinstance(strategies, (str, bytes)):
+        raise ValidationError(
+            "strategies must be a sequence of strategy names."
+        )
+
+    try:
+        strategy_list = list(strategies)
+    except TypeError as error:
+        raise ValidationError(
+            "strategies must be a sequence of strategy names."
+        ) from error
+
+    if not strategy_list:
+        raise ValidationError(
+            "strategies must contain at least one strategy."
+        )
+
+    supported = {"regular", "random", "center_focused"}
+    normalized: list[str] = []
+
+    for strategy in strategy_list:
+        strategy_name = _normalize_choice(
+            strategy,
+            "strategy",
+        )
+
+        if strategy_name == "center":
+            strategy_name = "center_focused"
+
+        if strategy_name not in supported:
+            raise ValidationError(
+                "Unsupported strategy. Choose 'regular', 'random', "
+                "or 'center_focused'."
+            )
+
+        normalized.append(strategy_name)
+
+    if len(set(normalized)) != len(normalized):
+        raise ValidationError(
+            "strategies must not contain duplicates."
+        )
+
+    return normalized
+
+
+def _study_seed(
+    master_seed: int,
+    run_seed: int,
+    stream: int,
+) -> int:
+    """Derive one deterministic independent study seed."""
+    seed_sequence = np.random.SeedSequence(
+        [master_seed, run_seed, stream]
+    )
+    return int(
+        seed_sequence.generate_state(
+            1,
+            dtype=np.uint32,
+        )[0]
+    )
 
 
 def _normalize_choice(value: str, name: str) -> str:
@@ -571,6 +789,8 @@ def reconstruct_from_measurements(
         config=config,
         runtime=float(runtime),
     )
+
+
 def run_regularization_study(
 
     alpha_values: Sequence[Real],
@@ -1136,6 +1356,765 @@ def run_repeated_noise_study(
                 ),
                 "std_residual_norm": float(
                     selected["residual_norm"].std(ddof=0)
+                ),
+            }
+        )
+
+    summary = pd.DataFrame(summary_rows)
+
+    return detailed, summary, results
+
+
+def run_compact_parameter_study(
+    alphas: Sequence[Real],
+    betas: Sequence[Real],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    num_sensors: int = 25,
+    noise_level: Real = 0.02,
+    seed: int | None = 42,
+    near_zero_threshold: Real = 1e-8,
+    max_iterations: int = 100_000,
+    tolerance: Real = 1e-7,
+) -> pd.DataFrame:
+    """Evaluate compact reconstructions on one shared benchmark.
+
+    Rows follow alpha-major Cartesian order. The regularization
+    values are controlled study inputs rather than universally optimal
+    choices.
+    """
+    alpha_values = _validate_compact_parameter_values(
+        alphas,
+        "alphas",
+        positive=True,
+    )
+    beta_values = _validate_compact_parameter_values(
+        betas,
+        "betas",
+        positive=False,
+    )
+    threshold_value = _validate_positive_real(
+        near_zero_threshold,
+        "near_zero_threshold",
+    )
+    iteration_limit = _validate_positive_integer(
+        max_iterations,
+        "max_iterations",
+    )
+    tolerance_value = _validate_positive_real(
+        tolerance,
+        "tolerance",
+    )
+    nx, ny = _validate_grid_shape(grid_shape)
+    noise_value = _validate_nonnegative_real(
+        noise_level,
+        "noise_level",
+    )
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    source_seed, sensor_seed, noise_seed = _derived_seeds(seed)
+    grid = Grid2D(nx=nx, ny=ny, domain=selected_domain)
+    true_source = _create_synthetic_source(
+        grid,
+        source_type,
+        seed=source_seed,
+    )
+    temperature = solve_forward(true_source, grid)
+    sensor_indices = _place_sensors(
+        grid,
+        sensor_strategy,
+        num_sensors,
+        seed=sensor_seed,
+    )
+    sensor_data_clean = create_sensor_data(
+        temperature,
+        sensor_indices,
+        grid,
+    )
+    sensor_data_noisy = add_noise_to_sensor_data(
+        sensor_data_clean,
+        noise_level=noise_value,
+        seed=noise_seed,
+        relative=True,
+    )
+
+    rows: list[dict[str, float | int]] = []
+    interior_size = (grid.nx - 2) * (grid.ny - 2)
+
+    for alpha in alpha_values:
+        for beta in beta_values:
+            reconstruction = reconstruct_compact_nonnegative(
+                sensor_data_noisy,
+                grid,
+                alpha=alpha,
+                beta=beta,
+                max_iterations=iteration_limit,
+                tolerance=tolerance_value,
+            )
+            source_metrics = compute_all_metrics(
+                true_source,
+                reconstruction.source,
+            )
+            measurement_metrics = _measurement_metrics(
+                reconstruction,
+                sensor_data_noisy.values,
+            )
+            interior_source = reconstruction.source[1:-1, 1:-1]
+            x_differences = np.diff(
+                interior_source,
+                axis=0,
+            ) / grid.dx
+            y_differences = np.diff(
+                interior_source,
+                axis=1,
+            ) / grid.dy
+            gradient_norm = float(
+                np.sqrt(
+                    np.sum(x_differences**2)
+                    + np.sum(y_differences**2)
+                )
+            )
+            near_zero_count = int(
+                np.count_nonzero(
+                    np.abs(interior_source) <= threshold_value
+                )
+            )
+
+            rows.append(
+                {
+                    "alpha": alpha,
+                    "beta": beta,
+                    "relative_l2_error": source_metrics[
+                        "relative_l2_error"
+                    ],
+                    "rmse": source_metrics["rmse"],
+                    "mae": source_metrics["mae"],
+                    "max_absolute_error": source_metrics[
+                        "max_absolute_error"
+                    ],
+                    "residual_norm": measurement_metrics[
+                        "residual_norm"
+                    ],
+                    "relative_residual": measurement_metrics[
+                        "relative_residual"
+                    ],
+                    "residual_rms": measurement_metrics[
+                        "residual_rms"
+                    ],
+                    "solution_norm": measurement_metrics[
+                        "solution_norm"
+                    ],
+                    "gradient_norm": gradient_norm,
+                    "near_zero_count": near_zero_count,
+                    "near_zero_fraction": (
+                        near_zero_count / interior_size
+                    ),
+                    "active_count": interior_size - near_zero_count,
+                    "runtime_seconds": float(
+                        reconstruction.runtime
+                    ),
+                }
+            )
+
+    columns = [
+        "alpha",
+        "beta",
+        "relative_l2_error",
+        "rmse",
+        "mae",
+        "max_absolute_error",
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+        "solution_norm",
+        "gradient_norm",
+        "near_zero_count",
+        "near_zero_fraction",
+        "active_count",
+        "runtime_seconds",
+    ]
+
+    return pd.DataFrame(rows, columns=columns)
+
+
+def run_reconstruction_method_study(
+    seeds: Sequence[int],
+    sensor_counts: Sequence[int],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    noise_level: Real = 0.02,
+    sensor_strategy: str = "regular",
+    seed: int = 42,
+    identity_alpha: Real = 1e-7,
+    smooth_alpha: Real = 1e-9,
+    compact_alpha: Real = 1e-9,
+    compact_beta: Real = 1e-8,
+    compact_max_iterations: int = 100_000,
+    compact_tolerance: Real = 1e-7,
+    near_zero_threshold: Real = 1e-8,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Compare three reconstruction methods on shared benchmarks.
+
+    The regularization defaults are documented starting values, not
+    universally optimal method settings. Population standard deviation
+    (``ddof=0``) is used in the summary table.
+    """
+    validated_seeds = _validate_method_study_seeds(seeds)
+    nx, ny = _validate_grid_shape(grid_shape)
+    maximum_sensors = (nx - 2) * (ny - 2)
+    validated_counts = _validate_method_study_sensor_counts(
+        sensor_counts,
+        maximum_sensors,
+    )
+    master_seed = _validate_seed_values([seed])[0]
+    noise_value = _validate_nonnegative_real(
+        noise_level,
+        "noise_level",
+    )
+    identity_alpha_value = _validate_positive_real(
+        identity_alpha,
+        "identity_alpha",
+    )
+    smooth_alpha_value = _validate_positive_real(
+        smooth_alpha,
+        "smooth_alpha",
+    )
+    compact_alpha_value = _validate_positive_real(
+        compact_alpha,
+        "compact_alpha",
+    )
+    compact_beta_value = _validate_nonnegative_real(
+        compact_beta,
+        "compact_beta",
+    )
+    iteration_limit = _validate_positive_integer(
+        compact_max_iterations,
+        "compact_max_iterations",
+    )
+    tolerance_value = _validate_positive_real(
+        compact_tolerance,
+        "compact_tolerance",
+    )
+    threshold_value = _validate_positive_real(
+        near_zero_threshold,
+        "near_zero_threshold",
+    )
+    normalized_source = _normalize_choice(
+        source_type,
+        "source_type",
+    )
+    normalized_strategy = _normalize_choice(
+        sensor_strategy,
+        "sensor_strategy",
+    )
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    method_order = (
+        "identity",
+        "smooth_nonnegative",
+        "compact_nonnegative",
+    )
+    rows: list[dict[str, Any]] = []
+
+    for sensor_count in validated_counts:
+        for run_seed in validated_seeds:
+            grid = Grid2D(
+                nx=nx,
+                ny=ny,
+                domain=selected_domain,
+            )
+            source_seed = _study_seed(
+                master_seed,
+                run_seed,
+                401,
+            )
+            sensor_seed = _study_seed(
+                master_seed,
+                run_seed,
+                500 + sensor_count,
+            )
+            noise_seed = _study_seed(
+                master_seed,
+                run_seed,
+                900 + sensor_count,
+            )
+            true_source = _create_synthetic_source(
+                grid,
+                normalized_source,
+                seed=source_seed,
+            )
+            temperature = solve_forward(true_source, grid)
+            sensor_indices = _place_sensors(
+                grid,
+                normalized_strategy,
+                sensor_count,
+                seed=sensor_seed,
+            )
+            sensor_data_clean = create_sensor_data(
+                temperature,
+                sensor_indices,
+                grid,
+            )
+            sensor_data_noisy = add_noise_to_sensor_data(
+                sensor_data_clean,
+                noise_level=noise_value,
+                seed=noise_seed,
+                relative=True,
+            )
+
+            reconstructions = (
+                (
+                    "identity",
+                    reconstruct_tikhonov(
+                        sensor_data_noisy,
+                        grid,
+                        alpha=identity_alpha_value,
+                    ),
+                ),
+                (
+                    "smooth_nonnegative",
+                    reconstruct_smooth_tikhonov(
+                        sensor_data_noisy,
+                        grid,
+                        alpha=smooth_alpha_value,
+                        nonnegative=True,
+                    ),
+                ),
+                (
+                    "compact_nonnegative",
+                    reconstruct_compact_nonnegative(
+                        sensor_data_noisy,
+                        grid,
+                        alpha=compact_alpha_value,
+                        beta=compact_beta_value,
+                        max_iterations=iteration_limit,
+                        tolerance=tolerance_value,
+                    ),
+                ),
+            )
+            interior_size = (grid.nx - 2) * (grid.ny - 2)
+
+            for method, reconstruction in reconstructions:
+                source_metrics = compute_all_metrics(
+                    true_source,
+                    reconstruction.source,
+                )
+                measurement_metrics = _measurement_metrics(
+                    reconstruction,
+                    sensor_data_noisy.values,
+                )
+                interior_source = reconstruction.source[
+                    1:-1,
+                    1:-1,
+                ]
+                x_differences = np.diff(
+                    interior_source,
+                    axis=0,
+                ) / grid.dx
+                y_differences = np.diff(
+                    interior_source,
+                    axis=1,
+                ) / grid.dy
+                gradient_norm = float(
+                    np.sqrt(
+                        np.sum(x_differences**2)
+                        + np.sum(y_differences**2)
+                    )
+                )
+                near_zero_count = int(
+                    np.count_nonzero(
+                        np.abs(interior_source)
+                        <= threshold_value
+                    )
+                )
+
+                rows.append(
+                    {
+                        "sensor_count": sensor_count,
+                        "run_seed": run_seed,
+                        "method": method,
+                        "relative_l2_error": source_metrics[
+                            "relative_l2_error"
+                        ],
+                        "rmse": source_metrics["rmse"],
+                        "mae": source_metrics["mae"],
+                        "max_absolute_error": source_metrics[
+                            "max_absolute_error"
+                        ],
+                        "residual_norm": measurement_metrics[
+                            "residual_norm"
+                        ],
+                        "relative_residual": measurement_metrics[
+                            "relative_residual"
+                        ],
+                        "residual_rms": measurement_metrics[
+                            "residual_rms"
+                        ],
+                        "solution_norm": measurement_metrics[
+                            "solution_norm"
+                        ],
+                        "gradient_norm": gradient_norm,
+                        "near_zero_count": near_zero_count,
+                        "near_zero_fraction": (
+                            near_zero_count / interior_size
+                        ),
+                        "active_count": (
+                            interior_size - near_zero_count
+                        ),
+                        "source_min": float(
+                            np.min(interior_source)
+                        ),
+                        "source_max": float(
+                            np.max(interior_source)
+                        ),
+                        "runtime_seconds": float(
+                            reconstruction.runtime
+                        ),
+                    }
+                )
+
+    detailed_columns = [
+        "sensor_count",
+        "run_seed",
+        "method",
+        "relative_l2_error",
+        "rmse",
+        "mae",
+        "max_absolute_error",
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+        "solution_norm",
+        "gradient_norm",
+        "near_zero_count",
+        "near_zero_fraction",
+        "active_count",
+        "source_min",
+        "source_max",
+        "runtime_seconds",
+    ]
+    detailed = pd.DataFrame(rows, columns=detailed_columns)
+    summary_rows: list[dict[str, Any]] = []
+
+    for sensor_count in validated_counts:
+        for method in method_order:
+            selected = detailed[
+                (detailed["sensor_count"] == sensor_count)
+                & (detailed["method"] == method)
+            ]
+            summary_rows.append(
+                {
+                    "sensor_count": sensor_count,
+                    "method": method,
+                    "number_of_runs": len(selected),
+                    "mean_relative_l2_error": float(
+                        selected["relative_l2_error"].mean()
+                    ),
+                    "std_relative_l2_error": float(
+                        selected["relative_l2_error"].std(ddof=0)
+                    ),
+                    "mean_rmse": float(selected["rmse"].mean()),
+                    "std_rmse": float(
+                        selected["rmse"].std(ddof=0)
+                    ),
+                    "mean_residual_norm": float(
+                        selected["residual_norm"].mean()
+                    ),
+                    "std_residual_norm": float(
+                        selected["residual_norm"].std(ddof=0)
+                    ),
+                    "mean_near_zero_fraction": float(
+                        selected["near_zero_fraction"].mean()
+                    ),
+                    "std_near_zero_fraction": float(
+                        selected["near_zero_fraction"].std(ddof=0)
+                    ),
+                    "mean_runtime_seconds": float(
+                        selected["runtime_seconds"].mean()
+                    ),
+                }
+            )
+
+    summary_columns = [
+        "sensor_count",
+        "method",
+        "number_of_runs",
+        "mean_relative_l2_error",
+        "std_relative_l2_error",
+        "mean_rmse",
+        "std_rmse",
+        "mean_residual_norm",
+        "std_residual_norm",
+        "mean_near_zero_fraction",
+        "std_near_zero_fraction",
+        "mean_runtime_seconds",
+    ]
+    summary = pd.DataFrame(
+        summary_rows,
+        columns=summary_columns,
+    )
+
+    return detailed, summary
+
+
+def run_sensor_layout_study(
+    strategies: Sequence[str],
+    seeds: Sequence[int],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    num_sensors: int = 25,
+    noise_level: Real = 0.02,
+    alpha: Real = 1e-7,
+    seed: int = 42,
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    list[ExperimentResult],
+]:
+    """Compare sensor-placement strategies under shared conditions.
+
+    The true source and temperature field are fixed for all strategies.
+    Regular and center-focused layouts remain fixed across repeated
+    runs, while random layouts change with the run seed. Each run seed
+    also determines an independent, reproducible noise realization.
+
+    Population standard deviation (``ddof=0``) is used so that a
+    single-run strategy reports zero observed variability.
+    """
+    normalized_strategies = _validate_sensor_strategies(strategies)
+    validated_seeds = _validate_seed_values(seeds)
+    master_seed = _validate_seed_values([seed])[0]
+    nx, ny = _validate_grid_shape(grid_shape)
+    noise_value = _validate_nonnegative_real(
+        noise_level,
+        "noise_level",
+    )
+    alpha_value = _validate_positive_real(alpha, "alpha")
+
+    if (
+        isinstance(num_sensors, bool)
+        or not isinstance(num_sensors, Integral)
+    ):
+        raise ValidationError("num_sensors must be an integer.")
+
+    sensor_count = int(num_sensors)
+    maximum_sensors = (nx - 2) * (ny - 2)
+
+    if sensor_count <= 0:
+        raise ValidationError(
+            "num_sensors must be greater than zero."
+        )
+
+    if sensor_count > maximum_sensors:
+        raise ValidationError(
+            "num_sensors cannot exceed the number of interior "
+            f"grid points ({maximum_sensors})."
+        )
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    source_seed, fixed_layout_seed, _ = _derived_seeds(
+        master_seed
+    )
+    normalized_source = _normalize_choice(
+        source_type,
+        "source_type",
+    )
+
+    grid = Grid2D(
+        nx=nx,
+        ny=ny,
+        domain=selected_domain,
+    )
+    true_source = _create_synthetic_source(
+        grid,
+        normalized_source,
+        seed=source_seed,
+    )
+    temperature = solve_forward(true_source, grid)
+
+    fixed_sensor_data: dict[str, SensorData] = {}
+
+    for strategy in normalized_strategies:
+        if strategy == "random":
+            continue
+
+        indices = _place_sensors(
+            grid,
+            strategy,
+            sensor_count,
+            seed=fixed_layout_seed,
+        )
+        fixed_sensor_data[strategy] = create_sensor_data(
+            temperature,
+            indices,
+            grid,
+        )
+
+    rows: list[dict[str, Any]] = []
+    results: list[ExperimentResult] = []
+
+    for strategy in normalized_strategies:
+        for run_seed in validated_seeds:
+            start_time = perf_counter()
+
+            if strategy == "random":
+                layout_seed = _study_seed(
+                    master_seed,
+                    run_seed,
+                    101,
+                )
+                sensor_indices = _place_sensors(
+                    grid,
+                    strategy,
+                    sensor_count,
+                    seed=layout_seed,
+                )
+                sensor_data_clean = create_sensor_data(
+                    temperature,
+                    sensor_indices,
+                    grid,
+                )
+            else:
+                layout_seed = fixed_layout_seed
+                sensor_data_clean = fixed_sensor_data[strategy]
+
+            noise_seed = _study_seed(
+                master_seed,
+                run_seed,
+                202,
+            )
+            sensor_data_noisy = add_noise_to_sensor_data(
+                sensor_data_clean,
+                noise_level=noise_value,
+                seed=noise_seed,
+                relative=True,
+            )
+            reconstruction = reconstruct_tikhonov(
+                sensor_data_noisy,
+                grid,
+                alpha=alpha_value,
+            )
+            metrics = compute_all_metrics(
+                true_source,
+                reconstruction.source,
+            )
+            metrics.update(
+                _measurement_metrics(
+                    reconstruction,
+                    sensor_data_noisy.values,
+                )
+            )
+
+            total_runtime = perf_counter() - start_time
+
+            config: dict[str, Any] = {
+                "mode": "synthetic_benchmark",
+                "study_type": "sensor_layout",
+                "grid_shape": grid.shape,
+                "domain_size": grid.domain.size,
+                "source_type": normalized_source,
+                "sensor_strategy": strategy,
+                "num_sensors": len(sensor_data_clean),
+                "noise_level": noise_value,
+                "alpha": float(reconstruction.alpha),
+                "seed": master_seed,
+                "run_seed": run_seed,
+                "layout_seed": layout_seed,
+                "noise_seed": noise_seed,
+            }
+
+            result = ExperimentResult(
+                grid=grid,
+                true_source=true_source,
+                temperature=temperature,
+                sensor_data_clean=sensor_data_clean,
+                sensor_data_noisy=sensor_data_noisy,
+                reconstruction=reconstruction,
+                metrics=metrics,
+                config=config,
+                runtime=float(total_runtime),
+            )
+            results.append(result)
+
+            rows.append(
+                {
+                    "strategy": strategy,
+                    "run_seed": run_seed,
+                    "sensor_count": len(sensor_data_clean),
+                    "relative_l2_error": metrics[
+                        "relative_l2_error"
+                    ],
+                    "rmse": metrics["rmse"],
+                    "residual_norm": metrics["residual_norm"],
+                    "relative_residual": metrics[
+                        "relative_residual"
+                    ],
+                    "residual_rms": metrics["residual_rms"],
+                    "runtime_seconds": float(
+                        reconstruction.runtime
+                    ),
+                }
+            )
+
+    detailed = pd.DataFrame(rows)
+    summary_rows: list[dict[str, Any]] = []
+
+    for strategy in normalized_strategies:
+        selected = detailed[detailed["strategy"] == strategy]
+
+        summary_rows.append(
+            {
+                "strategy": strategy,
+                "number_of_runs": len(selected),
+                "mean_relative_l2_error": float(
+                    selected["relative_l2_error"].mean()
+                ),
+                "std_relative_l2_error": float(
+                    selected["relative_l2_error"].std(ddof=0)
+                ),
+                "mean_rmse": float(selected["rmse"].mean()),
+                "std_rmse": float(
+                    selected["rmse"].std(ddof=0)
+                ),
+                "mean_residual_norm": float(
+                    selected["residual_norm"].mean()
+                ),
+                "std_residual_norm": float(
+                    selected["residual_norm"].std(ddof=0)
+                ),
+                "mean_runtime_seconds": float(
+                    selected["runtime_seconds"].mean()
                 ),
             }
         )

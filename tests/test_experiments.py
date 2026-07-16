@@ -1,7 +1,10 @@
 """Tests for the high-level experiment workflow."""
 
 import numpy as np
+import pandas as pd
 import pytest
+
+import thermoreconlab.experiments as experiments_module
 
 from thermoreconlab.core.grid import Grid2D
 from thermoreconlab.data import gaussian_source
@@ -10,9 +13,12 @@ from thermoreconlab.experiments import (
     ExperimentResult,
     MeasurementReconstructionResult,
     reconstruct_from_measurements,
+    run_compact_parameter_study,
     run_noise_sensitivity_study,
+    run_reconstruction_method_study,
     run_regularization_study,
     run_repeated_noise_study,
+    run_sensor_layout_study,
     run_sensor_count_study,
     run_synthetic_benchmark,
 )
@@ -823,3 +829,829 @@ def test_repeated_noise_study_rejects_invalid_noise_levels(
             [10, 20],
         )
 
+
+def run_small_sensor_layout_study():
+    """Run a compact deterministic sensor-layout comparison."""
+    return run_sensor_layout_study(
+        ["regular", "random", "center_focused"],
+        [1, 2],
+        grid_shape=(10, 10),
+        num_sensors=9,
+        noise_level=0.01,
+        alpha=1e-6,
+        seed=42,
+    )
+
+
+def test_sensor_layout_study_returns_expected_rows() -> None:
+    detailed, summary, results = run_small_sensor_layout_study()
+
+    assert len(detailed) == 6
+    assert len(summary) == 3
+    assert len(results) == 6
+
+
+def test_sensor_layout_study_has_required_columns() -> None:
+    detailed, summary, _ = run_small_sensor_layout_study()
+
+    assert set(detailed.columns) == {
+        "strategy",
+        "run_seed",
+        "sensor_count",
+        "relative_l2_error",
+        "rmse",
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+        "runtime_seconds",
+    }
+    assert set(summary.columns) == {
+        "strategy",
+        "number_of_runs",
+        "mean_relative_l2_error",
+        "std_relative_l2_error",
+        "mean_rmse",
+        "std_rmse",
+        "mean_residual_norm",
+        "std_residual_norm",
+        "mean_runtime_seconds",
+    }
+
+
+def test_sensor_layout_study_is_scientifically_deterministic() -> None:
+    first_detail, first_summary, first_results = (
+        run_small_sensor_layout_study()
+    )
+    second_detail, second_summary, second_results = (
+        run_small_sensor_layout_study()
+    )
+
+    pd.testing.assert_frame_equal(
+        first_detail.drop(columns="runtime_seconds"),
+        second_detail.drop(columns="runtime_seconds"),
+    )
+    pd.testing.assert_frame_equal(
+        first_summary.drop(columns="mean_runtime_seconds"),
+        second_summary.drop(columns="mean_runtime_seconds"),
+    )
+
+    for first, second in zip(first_results, second_results):
+        assert np.array_equal(
+            first.sensor_data_clean.indices,
+            second.sensor_data_clean.indices,
+        )
+        assert np.array_equal(
+            first.sensor_data_noisy.values,
+            second.sensor_data_noisy.values,
+        )
+        assert np.allclose(
+            first.reconstructed_source,
+            second.reconstructed_source,
+        )
+
+
+def test_sensor_layout_study_uses_same_true_source() -> None:
+    _, _, results = run_small_sensor_layout_study()
+    reference = results[0].true_source
+
+    for result in results[1:]:
+        assert np.array_equal(result.true_source, reference)
+
+
+def test_random_layout_varies_across_run_seeds() -> None:
+    _, _, results = run_small_sensor_layout_study()
+    random_results = [
+        result
+        for result in results
+        if result.config["sensor_strategy"] == "random"
+    ]
+
+    assert not np.array_equal(
+        random_results[0].sensor_data_clean.indices,
+        random_results[1].sensor_data_clean.indices,
+    )
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    ["regular", "center_focused"],
+)
+def test_fixed_layouts_are_reproducible_across_runs(
+    strategy: str,
+) -> None:
+    _, _, results = run_small_sensor_layout_study()
+    selected = [
+        result
+        for result in results
+        if result.config["sensor_strategy"] == strategy
+    ]
+
+    assert np.array_equal(
+        selected[0].sensor_data_clean.indices,
+        selected[1].sensor_data_clean.indices,
+    )
+
+
+def test_sensor_layout_study_one_seed_has_zero_std() -> None:
+    _, summary, _ = run_sensor_layout_study(
+        ["regular", "random", "center_focused"],
+        [7],
+        grid_shape=(10, 10),
+        num_sensors=9,
+        noise_level=0.01,
+        alpha=1e-6,
+        seed=42,
+    )
+
+    std_values = summary[
+        [
+            "std_relative_l2_error",
+            "std_rmse",
+            "std_residual_norm",
+        ]
+    ].to_numpy()
+
+    assert np.allclose(std_values, 0.0)
+
+
+def test_sensor_layout_study_metrics_are_finite() -> None:
+    detailed, summary, _ = run_small_sensor_layout_study()
+
+    metric_columns = [
+        "relative_l2_error",
+        "rmse",
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+    ]
+    assert np.all(
+        np.isfinite(detailed[metric_columns].to_numpy())
+    )
+    assert np.all(
+        np.isfinite(
+            summary.drop(columns="strategy").to_numpy()
+        )
+    )
+    assert np.all(detailed["runtime_seconds"] >= 0.0)
+
+
+def test_sensor_layout_study_preserves_strategy_order() -> None:
+    _, summary, _ = run_sensor_layout_study(
+        ["center_focused", "regular", "random"],
+        [1],
+        grid_shape=(10, 10),
+        num_sensors=9,
+        seed=42,
+    )
+
+    assert summary["strategy"].tolist() == [
+        "center_focused",
+        "regular",
+        "random",
+    ]
+
+
+def test_sensor_layout_study_rejects_empty_seeds() -> None:
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study(["regular"], [])
+
+
+@pytest.mark.parametrize(
+    "invalid_seeds",
+    [[-1], [1.5], [True], ["bad"]],
+)
+def test_sensor_layout_study_rejects_invalid_seeds(
+    invalid_seeds: list[object],
+) -> None:
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study(
+            ["regular"],
+            invalid_seeds,  # type: ignore[arg-type]
+        )
+
+
+def test_sensor_layout_study_rejects_empty_strategies() -> None:
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study([], [1])
+
+
+def test_sensor_layout_study_rejects_unknown_strategy() -> None:
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study(["diagonal"], [1])
+
+
+def test_sensor_layout_study_rejects_duplicate_strategies() -> None:
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study(
+            ["center", "center_focused"],
+            [1],
+        )
+
+
+@pytest.mark.parametrize(
+    ("keyword", "value"),
+    [
+        ("num_sensors", 0),
+        ("num_sensors", True),
+        ("noise_level", -0.01),
+        ("noise_level", float("nan")),
+        ("alpha", 0.0),
+        ("alpha", float("inf")),
+        ("seed", -1),
+        ("seed", True),
+    ],
+)
+def test_sensor_layout_study_rejects_invalid_parameters(
+    keyword: str,
+    value: object,
+) -> None:
+    settings = {
+        "strategies": ["regular"],
+        "seeds": [1],
+        "grid_shape": (10, 10),
+        "num_sensors": 9,
+        "noise_level": 0.01,
+        "alpha": 1e-6,
+        "seed": 42,
+    }
+    settings[keyword] = value
+
+    with pytest.raises(ValidationError):
+        run_sensor_layout_study(**settings)  # type: ignore[arg-type]
+
+
+COMPACT_STUDY_COLUMNS = [
+    "alpha",
+    "beta",
+    "relative_l2_error",
+    "rmse",
+    "mae",
+    "max_absolute_error",
+    "residual_norm",
+    "relative_residual",
+    "residual_rms",
+    "solution_norm",
+    "gradient_norm",
+    "near_zero_count",
+    "near_zero_fraction",
+    "active_count",
+    "runtime_seconds",
+]
+
+
+def run_small_compact_parameter_study() -> pd.DataFrame:
+    """Run a small deterministic compact-parameter study."""
+    return run_compact_parameter_study(
+        [1e-10, 1e-9],
+        [0.0, 1e-7],
+        grid_shape=(8, 8),
+        num_sensors=9,
+        noise_level=0.01,
+        seed=17,
+        near_zero_threshold=1e-8,
+    )
+
+
+def test_compact_parameter_study_shape_columns_and_order() -> None:
+    dataframe = run_small_compact_parameter_study()
+
+    assert len(dataframe) == 4
+    assert dataframe.columns.tolist() == COMPACT_STUDY_COLUMNS
+    assert list(zip(dataframe["alpha"], dataframe["beta"])) == [
+        (1e-10, 0.0),
+        (1e-10, 1e-7),
+        (1e-9, 0.0),
+        (1e-9, 1e-7),
+    ]
+
+
+def test_compact_parameter_study_is_scientifically_deterministic() -> None:
+    first = run_small_compact_parameter_study()
+    second = run_small_compact_parameter_study()
+
+    pd.testing.assert_frame_equal(
+        first.drop(columns="runtime_seconds"),
+        second.drop(columns="runtime_seconds"),
+        check_exact=True,
+    )
+
+
+def test_compact_parameter_study_builds_one_shared_benchmark(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_forward = experiments_module.solve_forward
+    original_reconstruct = (
+        experiments_module.reconstruct_compact_nonnegative
+    )
+    forward_calls = 0
+    sensor_data_ids: list[int] = []
+    grid_ids: list[int] = []
+    measurement_copies: list[np.ndarray] = []
+
+    def tracking_forward(source, grid):
+        nonlocal forward_calls
+        forward_calls += 1
+        return original_forward(source, grid)
+
+    def tracking_reconstruct(
+        sensor_data,
+        grid,
+        alpha,
+        beta,
+        *,
+        max_iterations,
+        tolerance,
+    ):
+        sensor_data_ids.append(id(sensor_data))
+        grid_ids.append(id(grid))
+        measurement_copies.append(sensor_data.values.copy())
+        return original_reconstruct(
+            sensor_data,
+            grid,
+            alpha=alpha,
+            beta=beta,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+        )
+
+    monkeypatch.setattr(
+        experiments_module,
+        "solve_forward",
+        tracking_forward,
+    )
+    monkeypatch.setattr(
+        experiments_module,
+        "reconstruct_compact_nonnegative",
+        tracking_reconstruct,
+    )
+
+    run_small_compact_parameter_study()
+
+    assert forward_calls == 1
+    assert len(set(sensor_data_ids)) == 1
+    assert len(set(grid_ids)) == 1
+    assert all(
+        np.array_equal(values, measurement_copies[0])
+        for values in measurement_copies[1:]
+    )
+
+
+def test_compact_parameter_study_metrics_are_finite() -> None:
+    dataframe = run_small_compact_parameter_study()
+
+    assert np.all(np.isfinite(dataframe.to_numpy(dtype=float)))
+    assert np.all(dataframe["runtime_seconds"] >= 0.0)
+
+
+def test_compact_parameter_study_compactness_is_consistent() -> None:
+    dataframe = run_small_compact_parameter_study()
+    interior_size = (8 - 2) * (8 - 2)
+
+    assert np.all(
+        dataframe["near_zero_count"]
+        + dataframe["active_count"]
+        == interior_size
+    )
+    assert np.allclose(
+        dataframe["near_zero_fraction"],
+        dataframe["near_zero_count"] / interior_size,
+    )
+    assert 0.0 in dataframe["beta"].to_numpy()
+
+
+def test_compact_parameter_study_does_not_modify_sequences() -> None:
+    alphas = [1e-10, 1e-9]
+    betas = [0.0, 1e-7]
+    original_alphas = alphas.copy()
+    original_betas = betas.copy()
+
+    run_compact_parameter_study(
+        alphas,
+        betas,
+        grid_shape=(8, 8),
+        num_sensors=9,
+    )
+
+    assert alphas == original_alphas
+    assert betas == original_betas
+
+
+@pytest.mark.parametrize(
+    "invalid_alphas",
+    [
+        [],
+        [0.0],
+        [-1e-9],
+        [float("nan")],
+        [float("inf")],
+        [True],
+        [1e-9, 1e-9],
+        "invalid",
+    ],
+)
+def test_compact_parameter_study_rejects_invalid_alphas(
+    invalid_alphas: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_compact_parameter_study(
+            invalid_alphas,  # type: ignore[arg-type]
+            [0.0],
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_betas",
+    [
+        [],
+        [-1e-7],
+        [float("nan")],
+        [float("inf")],
+        [True],
+        [0.0, 0.0],
+        "invalid",
+    ],
+)
+def test_compact_parameter_study_rejects_invalid_betas(
+    invalid_betas: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_compact_parameter_study(
+            [1e-9],
+            invalid_betas,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_threshold",
+    [0.0, -1.0, float("nan"), float("inf"), True],
+)
+def test_compact_parameter_study_rejects_invalid_threshold(
+    invalid_threshold: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_compact_parameter_study(
+            [1e-9],
+            [0.0],
+            near_zero_threshold=invalid_threshold,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_max_iterations",
+    [0, -1, 1.5, True],
+)
+def test_compact_parameter_study_rejects_invalid_iterations(
+    invalid_max_iterations: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_compact_parameter_study(
+            [1e-9],
+            [0.0],
+            max_iterations=invalid_max_iterations,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_tolerance",
+    [0.0, -1.0, float("nan"), float("inf"), True],
+)
+def test_compact_parameter_study_rejects_invalid_tolerance(
+    invalid_tolerance: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_compact_parameter_study(
+            [1e-9],
+            [0.0],
+            tolerance=invalid_tolerance,  # type: ignore[arg-type]
+        )
+
+
+METHOD_STUDY_DETAILED_COLUMNS = [
+    "sensor_count",
+    "run_seed",
+    "method",
+    "relative_l2_error",
+    "rmse",
+    "mae",
+    "max_absolute_error",
+    "residual_norm",
+    "relative_residual",
+    "residual_rms",
+    "solution_norm",
+    "gradient_norm",
+    "near_zero_count",
+    "near_zero_fraction",
+    "active_count",
+    "source_min",
+    "source_max",
+    "runtime_seconds",
+]
+
+METHOD_STUDY_SUMMARY_COLUMNS = [
+    "sensor_count",
+    "method",
+    "number_of_runs",
+    "mean_relative_l2_error",
+    "std_relative_l2_error",
+    "mean_rmse",
+    "std_rmse",
+    "mean_residual_norm",
+    "std_residual_norm",
+    "mean_near_zero_fraction",
+    "std_near_zero_fraction",
+    "mean_runtime_seconds",
+]
+
+METHOD_ORDER = [
+    "identity",
+    "smooth_nonnegative",
+    "compact_nonnegative",
+]
+
+
+@pytest.fixture(scope="module")
+def small_method_study() -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Run a small deterministic reconstruction-method study."""
+    return run_reconstruction_method_study(
+        seeds=[3, 7],
+        sensor_counts=[4, 9],
+        grid_shape=(8, 8),
+        noise_level=0.01,
+        seed=11,
+    )
+
+
+def test_method_study_columns_and_row_counts(
+    small_method_study: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    detailed, summary = small_method_study
+
+    assert detailed.columns.tolist() == METHOD_STUDY_DETAILED_COLUMNS
+    assert summary.columns.tolist() == METHOD_STUDY_SUMMARY_COLUMNS
+    assert len(detailed) == 2 * 2 * 3
+    assert len(summary) == 2 * 3
+
+
+def test_method_study_preserves_cartesian_and_method_order(
+    small_method_study: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    detailed, summary = small_method_study
+    expected = [
+        (sensor_count, run_seed, method)
+        for sensor_count in [4, 9]
+        for run_seed in [3, 7]
+        for method in METHOD_ORDER
+    ]
+
+    assert list(
+        zip(
+            detailed["sensor_count"],
+            detailed["run_seed"],
+            detailed["method"],
+        )
+    ) == expected
+    assert list(zip(summary["sensor_count"], summary["method"])) == [
+        (sensor_count, method)
+        for sensor_count in [4, 9]
+        for method in METHOD_ORDER
+    ]
+
+
+def test_method_study_uses_identical_data_across_methods(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_identity = experiments_module.reconstruct_tikhonov
+    original_smooth = experiments_module.reconstruct_smooth_tikhonov
+    original_compact = (
+        experiments_module.reconstruct_compact_nonnegative
+    )
+    sensor_ids: list[int] = []
+    grid_ids: list[int] = []
+    measurements: list[np.ndarray] = []
+
+    def record(sensor_data, grid) -> None:
+        sensor_ids.append(id(sensor_data))
+        grid_ids.append(id(grid))
+        measurements.append(sensor_data.values.copy())
+
+    def tracking_identity(sensor_data, grid, alpha):
+        record(sensor_data, grid)
+        return original_identity(sensor_data, grid, alpha=alpha)
+
+    def tracking_smooth(sensor_data, grid, alpha, *, nonnegative):
+        record(sensor_data, grid)
+        return original_smooth(
+            sensor_data,
+            grid,
+            alpha=alpha,
+            nonnegative=nonnegative,
+        )
+
+    def tracking_compact(
+        sensor_data,
+        grid,
+        alpha,
+        beta,
+        *,
+        max_iterations,
+        tolerance,
+    ):
+        record(sensor_data, grid)
+        return original_compact(
+            sensor_data,
+            grid,
+            alpha=alpha,
+            beta=beta,
+            max_iterations=max_iterations,
+            tolerance=tolerance,
+        )
+
+    monkeypatch.setattr(
+        experiments_module,
+        "reconstruct_tikhonov",
+        tracking_identity,
+    )
+    monkeypatch.setattr(
+        experiments_module,
+        "reconstruct_smooth_tikhonov",
+        tracking_smooth,
+    )
+    monkeypatch.setattr(
+        experiments_module,
+        "reconstruct_compact_nonnegative",
+        tracking_compact,
+    )
+
+    run_reconstruction_method_study(
+        seeds=[3],
+        sensor_counts=[4],
+        grid_shape=(7, 7),
+        noise_level=0.01,
+        seed=11,
+    )
+
+    assert len(set(sensor_ids)) == 1
+    assert len(set(grid_ids)) == 1
+    assert all(
+        np.array_equal(values, measurements[0])
+        for values in measurements[1:]
+    )
+
+
+def test_method_study_is_scientifically_deterministic() -> None:
+    settings = {
+        "seeds": [5],
+        "sensor_counts": [4],
+        "grid_shape": (7, 7),
+        "noise_level": 0.01,
+        "seed": 13,
+    }
+    first_detailed, first_summary = (
+        run_reconstruction_method_study(**settings)
+    )
+    second_detailed, second_summary = (
+        run_reconstruction_method_study(**settings)
+    )
+
+    pd.testing.assert_frame_equal(
+        first_detailed.drop(columns="runtime_seconds"),
+        second_detailed.drop(columns="runtime_seconds"),
+        check_exact=True,
+    )
+    pd.testing.assert_frame_equal(
+        first_summary.drop(columns="mean_runtime_seconds"),
+        second_summary.drop(columns="mean_runtime_seconds"),
+        check_exact=True,
+    )
+
+
+def test_method_study_metrics_and_compactness_are_consistent(
+    small_method_study: tuple[pd.DataFrame, pd.DataFrame],
+) -> None:
+    detailed, summary = small_method_study
+    interior_size = (8 - 2) * (8 - 2)
+    detailed_numeric = detailed.drop(columns="method")
+    summary_numeric = summary.drop(columns="method")
+
+    assert np.all(
+        np.isfinite(detailed_numeric.to_numpy(dtype=float))
+    )
+    assert np.all(
+        np.isfinite(summary_numeric.to_numpy(dtype=float))
+    )
+    assert np.all(detailed["runtime_seconds"] >= 0.0)
+    assert np.all(summary["mean_runtime_seconds"] >= 0.0)
+    assert np.all(
+        detailed["near_zero_count"] + detailed["active_count"]
+        == interior_size
+    )
+    assert np.allclose(
+        detailed["near_zero_fraction"],
+        detailed["near_zero_count"] / interior_size,
+    )
+
+    nonnegative = detailed[
+        detailed["method"].isin(
+            ["smooth_nonnegative", "compact_nonnegative"]
+        )
+    ]
+    assert np.all(nonnegative["source_min"] >= -1e-12)
+
+
+def test_method_study_one_seed_has_zero_population_std() -> None:
+    _, summary = run_reconstruction_method_study(
+        seeds=[3],
+        sensor_counts=[4],
+        grid_shape=(7, 7),
+    )
+    std_columns = [
+        "std_relative_l2_error",
+        "std_rmse",
+        "std_residual_norm",
+        "std_near_zero_fraction",
+    ]
+
+    assert np.allclose(summary[std_columns], 0.0)
+
+
+def test_method_study_does_not_modify_input_sequences() -> None:
+    seeds = [3, 7]
+    sensor_counts = [4, 9]
+    original_seeds = seeds.copy()
+    original_counts = sensor_counts.copy()
+
+    run_reconstruction_method_study(
+        seeds,
+        sensor_counts,
+        grid_shape=(8, 8),
+    )
+
+    assert seeds == original_seeds
+    assert sensor_counts == original_counts
+
+
+@pytest.mark.parametrize(
+    "invalid_seeds",
+    [[], [-1], [1.5], [True], [1, 1], "invalid"],
+)
+def test_method_study_rejects_invalid_seeds(
+    invalid_seeds: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_reconstruction_method_study(
+            invalid_seeds,  # type: ignore[arg-type]
+            [4],
+            grid_shape=(7, 7),
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_counts",
+    [[], [0], [-1], [1.5], [True], [4, 4], [26], "invalid"],
+)
+def test_method_study_rejects_invalid_sensor_counts(
+    invalid_counts: object,
+) -> None:
+    with pytest.raises(ValidationError):
+        run_reconstruction_method_study(
+            [1],
+            invalid_counts,  # type: ignore[arg-type]
+            grid_shape=(7, 7),
+        )
+
+
+@pytest.mark.parametrize(
+    ("parameter", "value"),
+    [
+        ("identity_alpha", 0.0),
+        ("identity_alpha", True),
+        ("smooth_alpha", -1.0),
+        ("smooth_alpha", float("nan")),
+        ("compact_alpha", float("inf")),
+        ("compact_alpha", 0.0),
+        ("compact_beta", -1.0),
+        ("compact_beta", True),
+        ("compact_max_iterations", 0),
+        ("compact_max_iterations", 1.5),
+        ("compact_max_iterations", True),
+        ("compact_tolerance", 0.0),
+        ("compact_tolerance", float("nan")),
+        ("near_zero_threshold", 0.0),
+        ("near_zero_threshold", float("inf")),
+    ],
+)
+def test_method_study_rejects_invalid_solver_parameters(
+    parameter: str,
+    value: object,
+) -> None:
+    settings = {
+        "seeds": [1],
+        "sensor_counts": [4],
+        "grid_shape": (7, 7),
+    }
+    settings[parameter] = value
+
+    with pytest.raises(ValidationError):
+        run_reconstruction_method_study(
+            **settings,  # type: ignore[arg-type]
+        )

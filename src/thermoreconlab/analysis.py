@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from numbers import Real
+
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
@@ -339,3 +341,99 @@ def validate_reconstruction(
         true_source,
         reconstructed_source,
     )
+
+
+def analyze_observation_matrix(
+    observation_matrix: ArrayLike,
+    *,
+    tolerance: Real | None = None,
+) -> dict[str, object]:
+    """Return singular-value diagnostics for an observation matrix."""
+    try:
+        matrix = np.asarray(observation_matrix, dtype=float)
+    except (TypeError, ValueError) as error:
+        raise ValidationError(
+            "observation_matrix must contain numeric values."
+        ) from error
+
+    if matrix.ndim != 2:
+        raise ValidationError(
+            "observation_matrix must be two-dimensional."
+        )
+
+    if matrix.shape[0] == 0 or matrix.shape[1] == 0:
+        raise ValidationError(
+            "observation_matrix dimensions must be nonempty."
+        )
+
+    if not np.all(np.isfinite(matrix)):
+        raise ValidationError(
+            "observation_matrix must contain only finite values."
+        )
+
+    singular_values = np.linalg.svd(
+        matrix,
+        compute_uv=False,
+    )
+    singular_values = np.sort(
+        np.asarray(singular_values, dtype=float)
+    )[::-1].copy()
+    largest_singular_value = float(singular_values[0])
+
+    if tolerance is None:
+        rank_tolerance = float(
+            max(matrix.shape)
+            * np.finfo(float).eps
+            * largest_singular_value
+        )
+    else:
+        if isinstance(tolerance, (bool, np.bool_)) or not isinstance(
+            tolerance,
+            Real,
+        ):
+            raise ValidationError(
+                "tolerance must be a finite nonnegative real number."
+            )
+
+        rank_tolerance = float(tolerance)
+
+        if not np.isfinite(rank_tolerance) or rank_tolerance < 0.0:
+            raise ValidationError(
+                "tolerance must be a finite nonnegative real number."
+            )
+
+    numerical_rank = int(
+        np.count_nonzero(singular_values > rank_tolerance)
+    )
+    number_of_measurements, number_of_unknowns = matrix.shape
+    nullity = number_of_unknowns - numerical_rank
+
+    if numerical_rank == 0:
+        smallest_resolved = 0.0
+        effective_condition_number = float("inf")
+    else:
+        smallest_resolved = float(
+            singular_values[numerical_rank - 1]
+        )
+        effective_condition_number = float(
+            largest_singular_value / smallest_resolved
+        )
+
+    return {
+        "shape": matrix.shape,
+        "number_of_measurements": number_of_measurements,
+        "number_of_unknowns": number_of_unknowns,
+        "measurement_to_unknown_ratio": float(
+            number_of_measurements / number_of_unknowns
+        ),
+        "underdetermined": (
+            number_of_measurements < number_of_unknowns
+        ),
+        "singular_values": singular_values,
+        "rank_tolerance": rank_tolerance,
+        "numerical_rank": numerical_rank,
+        "nullity": nullity,
+        "largest_singular_value": largest_singular_value,
+        "smallest_resolved_singular_value": smallest_resolved,
+        "effective_condition_number": effective_condition_number,
+    }
