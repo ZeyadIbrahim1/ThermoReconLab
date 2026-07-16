@@ -6,18 +6,22 @@ simple user-facing experiments.
 """
 
 from __future__ import annotations
-from collections.abc import Sequence
 
-import pandas as pd
+from collections.abc import Sequence
 from dataclasses import dataclass
 from numbers import Integral, Real
 from time import perf_counter
 from typing import Any
 
 import numpy as np
+import pandas as pd
 from numpy.typing import NDArray
 
-from thermoreconlab.analysis import compute_all_metrics
+from thermoreconlab.analysis import (
+    compute_all_metrics,
+    relative_residual,
+    residual_rms,
+)
 from thermoreconlab.core.domain import Domain2D
 from thermoreconlab.core.grid import Grid2D
 from thermoreconlab.data import (
@@ -79,6 +83,7 @@ class ExperimentResult:
             },
         }
 
+
 @dataclass(frozen=True, slots=True)
 class MeasurementReconstructionResult:
     """Store a reconstruction produced from user measurements.
@@ -98,6 +103,14 @@ class MeasurementReconstructionResult:
         """Return the reconstructed heat-source field."""
         return self.reconstruction.source
 
+    @property
+    def metrics(self) -> dict[str, float]:
+        """Return measurement-space reconstruction diagnostics."""
+        return _measurement_metrics(
+            self.reconstruction,
+            self.sensor_data.values,
+        )
+
     def to_dict(self) -> dict[str, Any]:
         """Return a compact serializable reconstruction summary."""
         return {
@@ -115,7 +128,29 @@ class MeasurementReconstructionResult:
                 "n_sensors": int(self.reconstruction.n_sensors),
             },
         }
-    
+
+
+def _measurement_metrics(
+    reconstruction: ReconstructionResult,
+    observed_measurements: NDArray[np.float64],
+) -> dict[str, float]:
+    """Collect measurement-space reconstruction diagnostics."""
+    predicted = reconstruction.predicted_measurements
+
+    return {
+        "residual_norm": float(reconstruction.residual_norm),
+        "relative_residual": relative_residual(
+            predicted,
+            observed_measurements,
+        ),
+        "residual_rms": residual_rms(
+            predicted,
+            observed_measurements,
+        ),
+        "solution_norm": float(reconstruction.solution_norm),
+    }
+
+
 def _validate_grid_shape(
     grid_shape: tuple[int, int],
 ) -> tuple[int, int]:
@@ -161,6 +196,45 @@ def _validate_nonnegative_real(
         raise ValidationError(f"{name} must be nonnegative.")
 
     return result
+
+
+def _validate_seed_values(seeds: Sequence[int]) -> list[int]:
+    """Validate a nonempty sequence of nonnegative integer seeds."""
+    if isinstance(seeds, (str, bytes)):
+        raise ValidationError(
+            "seeds must be a sequence of nonnegative integers."
+        )
+
+    try:
+        seed_list = list(seeds)
+    except TypeError as error:
+        raise ValidationError(
+            "seeds must be a sequence of nonnegative integers."
+        ) from error
+
+    if not seed_list:
+        raise ValidationError(
+            "seeds must contain at least one value."
+        )
+
+    validated_seeds: list[int] = []
+
+    for seed in seed_list:
+        if isinstance(seed, bool) or not isinstance(seed, Integral):
+            raise ValidationError(
+                "Every seed must be a nonnegative integer."
+            )
+
+        integer_seed = int(seed)
+
+        if integer_seed < 0:
+            raise ValidationError(
+                "Every seed must be a nonnegative integer."
+            )
+
+        validated_seeds.append(integer_seed)
+
+    return validated_seeds
 
 
 def _normalize_choice(value: str, name: str) -> str:
@@ -381,36 +455,32 @@ def run_synthetic_benchmark(
         true_source,
         reconstruction.source,
     )
-    metrics["residual_norm"] = float(
-        reconstruction.residual_norm
-    )
-    metrics["solution_norm"] = float(
-        reconstruction.solution_norm
+    metrics.update(
+        _measurement_metrics(
+            reconstruction,
+            sensor_data_noisy.values,
+        )
     )
 
     runtime = perf_counter() - start_time
 
-
-
-
     config: dict[str, Any] = {
-    "mode": "synthetic_benchmark",
-    "grid_shape": grid.shape,
-    "domain_size": grid.domain.size,
-    "source_type": _normalize_choice(
-        source_type,
-        "source_type",
-    ),
-    "sensor_strategy": _normalize_choice(
-        sensor_strategy,
-        "sensor_strategy",
-    ),
-    "num_sensors": int(num_sensors),
-    "noise_level": noise_value,
-    "alpha": float(reconstruction.alpha),
-    "seed": seed,
-}
-
+        "mode": "synthetic_benchmark",
+        "grid_shape": grid.shape,
+        "domain_size": grid.domain.size,
+        "source_type": _normalize_choice(
+            source_type,
+            "source_type",
+        ),
+        "sensor_strategy": _normalize_choice(
+            sensor_strategy,
+            "sensor_strategy",
+        ),
+        "num_sensors": int(num_sensors),
+        "noise_level": noise_value,
+        "alpha": float(reconstruction.alpha),
+        "seed": seed,
+    }
 
     return ExperimentResult(
         grid=grid,
@@ -423,6 +493,8 @@ def run_synthetic_benchmark(
         config=config,
         runtime=float(runtime),
     )
+
+
 def reconstruct_from_measurements(
     sensor_data: SensorData,
     *,
@@ -500,7 +572,7 @@ def reconstruct_from_measurements(
         runtime=float(runtime),
     )
 def run_regularization_study(
-        
+
     alpha_values: Sequence[Real],
     *,
     grid_shape: tuple[int, int] = (30, 30),
@@ -827,3 +899,247 @@ def run_noise_sensitivity_study(
     dataframe = pd.DataFrame(rows)
 
     return dataframe, results
+
+
+def run_repeated_noise_study(
+    noise_levels: Sequence[Real],
+    seeds: Sequence[int],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    num_sensors: int = 25,
+    alpha: Real = 1e-7,
+    seed: int | None = 42,
+) -> tuple[
+    pd.DataFrame,
+    pd.DataFrame,
+    list[ExperimentResult],
+]:
+    """Repeat the noise study using independent noise realizations.
+
+    The source field and clean sensor layout are generated once from
+    ``seed``. Each value in ``seeds`` is then used only for the
+    measurement-noise realization. This separates noise variability
+    from changes in the source or sensor geometry.
+
+    Parameters
+    ----------
+    noise_levels:
+        Nonnegative relative Gaussian noise levels.
+    seeds:
+        Nonnegative integer seeds for independent noise realizations.
+    grid_shape:
+        Number of grid points as ``(nx, ny)``.
+    domain:
+        Optional physical domain.
+    source_type:
+        Synthetic benchmark source type.
+    sensor_strategy:
+        Sensor placement strategy.
+    num_sensors:
+        Number of sparse temperature sensors.
+    alpha:
+        Tikhonov regularization parameter.
+    seed:
+        Master seed used only for the source and sensor geometry.
+
+    Returns
+    -------
+    tuple[pandas.DataFrame, pandas.DataFrame, list[ExperimentResult]]
+        Long-form run table, summary table, and complete results.
+
+    Notes
+    -----
+    Population standard deviation (``ddof=0``) is used so that a
+    study with one seed reports zero variability instead of NaN.
+    """
+    if isinstance(noise_levels, (str, bytes)):
+        raise ValidationError(
+            "noise_levels must be a sequence of nonnegative numbers."
+        )
+
+    try:
+        level_list = list(noise_levels)
+    except TypeError as error:
+        raise ValidationError(
+            "noise_levels must be a sequence of nonnegative numbers."
+        ) from error
+
+    if not level_list:
+        raise ValidationError(
+            "noise_levels must contain at least one value."
+        )
+
+    validated_levels = [
+        _validate_nonnegative_real(level, "noise level")
+        for level in level_list
+    ]
+    validated_seeds = _validate_seed_values(seeds)
+
+    nx, ny = _validate_grid_shape(grid_shape)
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    source_seed, sensor_seed, _ = _derived_seeds(seed)
+    normalized_source = _normalize_choice(
+        source_type,
+        "source_type",
+    )
+    normalized_strategy = _normalize_choice(
+        sensor_strategy,
+        "sensor_strategy",
+    )
+
+    grid = Grid2D(
+        nx=nx,
+        ny=ny,
+        domain=selected_domain,
+    )
+    true_source = _create_synthetic_source(
+        grid,
+        normalized_source,
+        seed=source_seed,
+    )
+    temperature = solve_forward(true_source, grid)
+    sensor_indices = _place_sensors(
+        grid,
+        normalized_strategy,
+        num_sensors,
+        seed=sensor_seed,
+    )
+    sensor_data_clean = create_sensor_data(
+        temperature,
+        sensor_indices,
+        grid,
+    )
+
+    results: list[ExperimentResult] = []
+    rows: list[dict[str, Any]] = []
+
+    for noise_level in validated_levels:
+        for noise_seed in validated_seeds:
+            start_time = perf_counter()
+
+            sensor_data_noisy = add_noise_to_sensor_data(
+                sensor_data_clean,
+                noise_level=noise_level,
+                seed=noise_seed,
+                relative=True,
+            )
+            reconstruction = reconstruct_tikhonov(
+                sensor_data_noisy,
+                grid,
+                alpha=alpha,
+            )
+            metrics = compute_all_metrics(
+                true_source,
+                reconstruction.source,
+            )
+            metrics.update(
+                _measurement_metrics(
+                    reconstruction,
+                    sensor_data_noisy.values,
+                )
+            )
+
+            runtime = perf_counter() - start_time
+            measurement_difference = (
+                sensor_data_noisy.values
+                - sensor_data_clean.values
+            )
+
+            config: dict[str, Any] = {
+                "mode": "synthetic_benchmark",
+                "study_type": "repeated_noise",
+                "grid_shape": grid.shape,
+                "domain_size": grid.domain.size,
+                "source_type": normalized_source,
+                "sensor_strategy": normalized_strategy,
+                "num_sensors": len(sensor_data_clean),
+                "noise_level": noise_level,
+                "alpha": float(reconstruction.alpha),
+                "seed": seed,
+                "noise_seed": noise_seed,
+            }
+
+            result = ExperimentResult(
+                grid=grid,
+                true_source=true_source,
+                temperature=temperature,
+                sensor_data_clean=sensor_data_clean,
+                sensor_data_noisy=sensor_data_noisy,
+                reconstruction=reconstruction,
+                metrics=metrics,
+                config=config,
+                runtime=float(runtime),
+            )
+            results.append(result)
+
+            rows.append(
+                {
+                    "study_type": "repeated_noise",
+                    "noise_level": noise_level,
+                    "seed": noise_seed,
+                    "measurement_noise_norm": float(
+                        np.linalg.norm(measurement_difference)
+                    ),
+                    "mean_absolute_measurement_noise": float(
+                        np.mean(np.abs(measurement_difference))
+                    ),
+                    "rmse": metrics["rmse"],
+                    "mae": metrics["mae"],
+                    "relative_l2_error": metrics[
+                        "relative_l2_error"
+                    ],
+                    "max_absolute_error": metrics[
+                        "max_absolute_error"
+                    ],
+                    "residual_norm": reconstruction.residual_norm,
+                    "solution_norm": reconstruction.solution_norm,
+                    "runtime": float(runtime),
+                }
+            )
+
+    detailed = pd.DataFrame(rows)
+    summary_rows: list[dict[str, Any]] = []
+
+    for noise_level in dict.fromkeys(validated_levels):
+        selected = detailed[
+            detailed["noise_level"] == noise_level
+        ]
+
+        summary_rows.append(
+            {
+                "noise_level": noise_level,
+                "number_of_runs": len(selected),
+                "mean_relative_l2_error": float(
+                    selected["relative_l2_error"].mean()
+                ),
+                "std_relative_l2_error": float(
+                    selected["relative_l2_error"].std(ddof=0)
+                ),
+                "mean_rmse": float(selected["rmse"].mean()),
+                "std_rmse": float(
+                    selected["rmse"].std(ddof=0)
+                ),
+                "mean_residual_norm": float(
+                    selected["residual_norm"].mean()
+                ),
+                "std_residual_norm": float(
+                    selected["residual_norm"].std(ddof=0)
+                ),
+            }
+        )
+
+    summary = pd.DataFrame(summary_rows)
+
+    return detailed, summary, results

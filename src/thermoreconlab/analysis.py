@@ -65,6 +65,73 @@ def _validate_matching_arrays(
     return reference_array, estimate_array
 
 
+def _validate_source_fields(
+    true_source: ArrayLike,
+    reconstructed_source: ArrayLike,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Validate matching two-dimensional source fields."""
+    true_array = ensure_2d_array(
+        true_source,
+        name="true_source",
+    )
+    reconstructed_array = ensure_2d_array(
+        reconstructed_source,
+        name="reconstructed_source",
+    )
+
+    if true_array.shape != reconstructed_array.shape:
+        raise ValidationError(
+            "true_source and reconstructed_source must have "
+            f"matching shapes, but received {true_array.shape} "
+            f"and {reconstructed_array.shape}."
+        )
+
+    if true_array.shape[0] < 3 or true_array.shape[1] < 3:
+        raise ValidationError(
+            "Source fields must have at least three grid points "
+            "in each direction."
+        )
+
+    return true_array, reconstructed_array
+
+
+def _source_interiors(
+    true_source: ArrayLike,
+    reconstructed_source: ArrayLike,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return matching interior source values for evaluation."""
+    true_array, reconstructed_array = _validate_source_fields(
+        true_source,
+        reconstructed_source,
+    )
+
+    return (
+        true_array[1:-1, 1:-1],
+        reconstructed_array[1:-1, 1:-1],
+    )
+
+
+def _validate_measurement_arrays(
+    predicted_measurements: ArrayLike,
+    observed_measurements: ArrayLike,
+) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Validate matching one-dimensional measurement arrays."""
+    predicted_array, observed_array = _validate_matching_arrays(
+        predicted_measurements,
+        observed_measurements,
+        reference_name="predicted_measurements",
+        estimate_name="observed_measurements",
+    )
+
+    if predicted_array.ndim != 1:
+        raise ValidationError(
+            "predicted_measurements and observed_measurements "
+            "must be one-dimensional."
+        )
+
+    return predicted_array, observed_array
+
+
 def rmse(
     true_values: ArrayLike,
     predicted_values: ArrayLike,
@@ -158,65 +225,103 @@ def residual_norm(
     observed_measurements: ArrayLike,
 ) -> float:
     """Return the Euclidean measurement residual norm."""
-    predicted_array, observed_array = _validate_matching_arrays(
+    predicted_array, observed_array = _validate_measurement_arrays(
         predicted_measurements,
         observed_measurements,
-        reference_name="predicted_measurements",
-        estimate_name="observed_measurements",
     )
 
-    residual = (
-        predicted_array.ravel(order="C")
-        - observed_array.ravel(order="C")
+    return float(np.linalg.norm(predicted_array - observed_array))
+
+
+def relative_residual(
+    predicted_measurements: ArrayLike,
+    observed_measurements: ArrayLike,
+) -> float:
+    """Return the residual norm relative to the observed-data norm.
+
+    When the observed norm is zero, the function returns zero for a
+    zero residual and infinity for a nonzero residual.
+    """
+    predicted_array, observed_array = _validate_measurement_arrays(
+        predicted_measurements,
+        observed_measurements,
     )
 
-    return float(np.linalg.norm(residual))
+    residual_value = float(
+        np.linalg.norm(predicted_array - observed_array)
+    )
+    observed_norm = float(np.linalg.norm(observed_array))
+
+    if observed_norm == 0.0:
+        if residual_value == 0.0:
+            return 0.0
+
+        return float("inf")
+
+    return residual_value / observed_norm
+
+
+def residual_rms(
+    predicted_measurements: ArrayLike,
+    observed_measurements: ArrayLike,
+) -> float:
+    """Return the root-mean-square measurement residual."""
+    predicted_array, observed_array = _validate_measurement_arrays(
+        predicted_measurements,
+        observed_measurements,
+    )
+
+    residual_value = float(
+        np.linalg.norm(predicted_array - observed_array)
+    )
+
+    return residual_value / float(np.sqrt(predicted_array.size))
 
 
 def compute_error_field(
     true_source: ArrayLike,
     reconstructed_source: ArrayLike,
 ) -> NDArray[np.float64]:
-    """Return the signed reconstruction error field.
+    """Return the signed interior reconstruction error field.
 
-    The error is defined as
-
-    ``reconstructed_source - true_source``.
+    Interior entries contain ``reconstructed_source - true_source``.
+    Boundary entries are zero because boundary source values are not
+    unknowns in the inverse problem.
     """
-    true_array = ensure_2d_array(
+    true_array, reconstructed_array = _validate_source_fields(
         true_source,
-        name="true_source",
-    )
-    reconstructed_array = ensure_2d_array(
         reconstructed_source,
-        name="reconstructed_source",
     )
 
-    if true_array.shape != reconstructed_array.shape:
-        raise ValidationError(
-            "true_source and reconstructed_source must have "
-            f"matching shapes, but received {true_array.shape} "
-            f"and {reconstructed_array.shape}."
-        )
+    error_field = np.zeros_like(reconstructed_array, dtype=float)
+    error_field[1:-1, 1:-1] = (
+        reconstructed_array[1:-1, 1:-1]
+        - true_array[1:-1, 1:-1]
+    )
 
-    return reconstructed_array - true_array
+    return error_field
 
 
 def compute_all_metrics(
     true_source: ArrayLike,
     reconstructed_source: ArrayLike,
 ) -> dict[str, float]:
-    """Compute the standard source-reconstruction metrics."""
+    """Compute source-reconstruction metrics on interior nodes."""
+    true_interior, reconstructed_interior = _source_interiors(
+        true_source,
+        reconstructed_source,
+    )
+
     return {
-        "rmse": rmse(true_source, reconstructed_source),
-        "mae": mae(true_source, reconstructed_source),
+        "rmse": rmse(true_interior, reconstructed_interior),
+        "mae": mae(true_interior, reconstructed_interior),
         "relative_l2_error": relative_l2_error(
-            true_source,
-            reconstructed_source,
+            true_interior,
+            reconstructed_interior,
         ),
         "max_absolute_error": max_absolute_error(
-            true_source,
-            reconstructed_source,
+            true_interior,
+            reconstructed_interior,
         ),
     }
 

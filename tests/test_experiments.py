@@ -2,39 +2,20 @@
 
 import numpy as np
 import pytest
-from thermoreconlab.experiments import (
-    ExperimentResult,
-    MeasurementReconstructionResult,
-    run_regularization_study,
-)
 
+from thermoreconlab.core.grid import Grid2D
+from thermoreconlab.data import gaussian_source
+from thermoreconlab.exceptions import ValidationError
 from thermoreconlab.experiments import (
     ExperimentResult,
     MeasurementReconstructionResult,
     reconstruct_from_measurements,
     run_noise_sensitivity_study,
     run_regularization_study,
+    run_repeated_noise_study,
     run_sensor_count_study,
     run_synthetic_benchmark,
 )
-from thermoreconlab import run_synthetic_benchmark
-from thermoreconlab.experiments import ExperimentResult
-from thermoreconlab.exceptions import ValidationError
-from thermoreconlab.experiments import (
-    ExperimentResult,
-    MeasurementReconstructionResult,
-    reconstruct_from_measurements,
-    run_regularization_study,
-    run_sensor_count_study,
-    run_synthetic_benchmark,
-)
-from thermoreconlab.experiments import (
-    ExperimentResult,
-    MeasurementReconstructionResult,
-)
-
-from thermoreconlab.core.grid import Grid2D
-from thermoreconlab.data import gaussian_source
 from thermoreconlab.reconstruction import (
     reconstruct_tikhonov,
     solve_forward,
@@ -45,10 +26,7 @@ from thermoreconlab.sensors import (
     regular_grid_sensors,
 )
 
-from thermoreconlab import (
-    reconstruct_from_measurements,
-    run_synthetic_benchmark,
-)
+
 def test_synthetic_benchmark_returns_experiment_result() -> None:
     result = run_synthetic_benchmark(
         grid_shape=(9, 10),
@@ -81,8 +59,31 @@ def test_benchmark_contains_expected_metrics() -> None:
         "relative_l2_error",
         "max_absolute_error",
         "residual_norm",
+        "relative_residual",
+        "residual_rms",
         "solution_norm",
     }
+
+
+def test_benchmark_residual_metrics_are_finite() -> None:
+    """Residual diagnostics should be finite normally."""
+    result = run_synthetic_benchmark(
+        grid_shape=(8, 8),
+        num_sensors=9,
+        noise_level=0.02,
+        seed=4,
+    )
+
+    for name in (
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+    ):
+        assert np.isfinite(result.metrics[name])
+
+    assert result.metrics["residual_norm"] == pytest.approx(
+        result.reconstruction.residual_norm
+    )
 
 
 def test_benchmark_is_reproducible() -> None:
@@ -343,6 +344,32 @@ def test_user_mode_matches_direct_inverse_solver() -> None:
     )
 
 
+def test_user_mode_contains_measurement_metrics_only() -> None:
+    """User mode should expose measurement diagnostics only."""
+    grid, sensor_data = create_example_measurements()
+
+    result = reconstruct_from_measurements(
+        sensor_data,
+        grid_shape=grid.shape,
+    )
+
+    assert set(result.metrics) == {
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+        "solution_norm",
+    }
+    assert all(np.isfinite(value) for value in result.metrics.values())
+
+    for source_metric in (
+        "rmse",
+        "mae",
+        "relative_l2_error",
+        "max_absolute_error",
+    ):
+        assert source_metric not in result.metrics
+
+
 def test_user_result_summary_contains_no_ground_truth_metrics() -> None:
     """Real-data results should not claim unavailable accuracy metrics."""
     grid, sensor_data = create_example_measurements()
@@ -461,7 +488,8 @@ def test_regularization_study_rejects_invalid_alpha() -> None:
             [1e-4, 0.0],
             grid_shape=(8, 8),
             num_sensors=9,
-        )       
+        )
+
 
 def test_sensor_count_study_returns_dataframe() -> None:
     """The study should return one result per sensor count."""
@@ -550,7 +578,7 @@ def test_sensor_count_study_rejects_invalid_counts(
     with pytest.raises(ValidationError):
         run_sensor_count_study(
             invalid_counts,  # type: ignore[arg-type]
-        )        
+        )
 
 
 def test_noise_sensitivity_study_returns_dataframe() -> None:
@@ -652,4 +680,146 @@ def test_noise_study_rejects_invalid_levels(
         run_noise_sensitivity_study(
             invalid_levels,  # type: ignore[arg-type]
         )
-                
+
+
+def test_repeated_noise_study_returns_expected_tables() -> None:
+    """Each noise level should contain one row per noise seed."""
+    detailed, summary, results = run_repeated_noise_study(
+        [0.0, 0.02],
+        [10, 20, 30],
+        grid_shape=(8, 8),
+        num_sensors=9,
+        seed=42,
+    )
+
+    assert len(detailed) == 6
+    assert len(summary) == 2
+    assert len(results) == 6
+    assert summary["number_of_runs"].tolist() == [3, 3]
+
+    assert set(summary.columns) == {
+        "noise_level",
+        "number_of_runs",
+        "mean_relative_l2_error",
+        "std_relative_l2_error",
+        "mean_rmse",
+        "std_rmse",
+        "mean_residual_norm",
+        "std_residual_norm",
+    }
+
+    reference_source = results[0].true_source
+    reference_indices = results[0].sensor_data_clean.indices
+    reference_values = results[0].sensor_data_clean.values
+
+    for result in results[1:]:
+        assert np.array_equal(result.true_source, reference_source)
+        assert np.array_equal(
+            result.sensor_data_clean.indices,
+            reference_indices,
+        )
+        assert np.array_equal(
+            result.sensor_data_clean.values,
+            reference_values,
+        )
+
+
+def test_repeated_noise_study_is_deterministic() -> None:
+    """Fixed source and noise seeds should reproduce all metrics."""
+    settings = {
+        "noise_levels": [0.01, 0.03],
+        "seeds": [4, 9],
+        "grid_shape": (8, 8),
+        "sensor_strategy": "random",
+        "num_sensors": 9,
+        "seed": 17,
+    }
+
+    first_detail, first_summary, first_results = (
+        run_repeated_noise_study(**settings)
+    )
+    second_detail, second_summary, second_results = (
+        run_repeated_noise_study(**settings)
+    )
+
+    assert first_detail.drop(columns="runtime").equals(
+        second_detail.drop(columns="runtime")
+    )
+    assert first_summary.equals(second_summary)
+
+    for first, second in zip(first_results, second_results):
+        assert np.array_equal(
+            first.sensor_data_noisy.values,
+            second.sensor_data_noisy.values,
+        )
+        assert np.allclose(
+            first.reconstructed_source,
+            second.reconstructed_source,
+        )
+
+
+def test_repeated_noise_study_one_seed_has_zero_std() -> None:
+    """One realization has no observed between-run variability."""
+    _, summary, _ = run_repeated_noise_study(
+        [0.0, 0.02],
+        [10],
+        grid_shape=(8, 8),
+        num_sensors=9,
+    )
+
+    standard_deviations = summary[
+        [
+            "std_relative_l2_error",
+            "std_rmse",
+            "std_residual_norm",
+        ]
+    ].to_numpy()
+
+    assert np.allclose(standard_deviations, 0.0)
+
+
+def test_repeated_noise_study_rejects_empty_seeds() -> None:
+    """At least one noise seed must be supplied."""
+    with pytest.raises(ValidationError):
+        run_repeated_noise_study([0.01], [])
+
+
+@pytest.mark.parametrize(
+    "invalid_seeds",
+    [
+        [-1, 2],
+        [1.5, 2],
+        [True, 2],
+        ["bad", 2],
+    ],
+)
+def test_repeated_noise_study_rejects_invalid_seeds(
+    invalid_seeds: list[object],
+) -> None:
+    """Noise seeds must be nonnegative integers."""
+    with pytest.raises(ValidationError):
+        run_repeated_noise_study(
+            [0.01],
+            invalid_seeds,  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_levels",
+    [
+        [-0.01, 0.02],
+        [0.01, float("nan")],
+        [0.01, float("inf")],
+        [0.01, True],
+    ],
+)
+def test_repeated_noise_study_rejects_invalid_noise_levels(
+    invalid_levels: list[object],
+) -> None:
+    """Noise levels must be finite nonnegative numbers."""
+    with pytest.raises(ValidationError):
+        run_repeated_noise_study(
+            invalid_levels,  # type: ignore[arg-type]
+            [10, 20],
+        )
+
