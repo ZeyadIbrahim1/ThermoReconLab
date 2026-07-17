@@ -5,17 +5,19 @@ heat-source reconstruction experiments using sparse temperature
 sensor measurements.
 """
 
-from thermoreconlab.reconstruction import (
-    reconstruct_compact_nonnegative,
-    reconstruct_smooth_tikhonov,
-)
 from thermoreconlab.experiments import (
     ExperimentResult,
     MeasurementReconstructionResult,
     reconstruct_from_measurements,
+    reconstruct_from_temperature_field,
     run_compact_parameter_study,
     run_reconstruction_method_study,
+    run_regularization_comparison,
     run_synthetic_benchmark,
+)
+from thermoreconlab.reconstruction import (
+    reconstruct_compact_nonnegative,
+    reconstruct_smooth_tikhonov,
 )
 
 __version__ = "0.1.0"
@@ -24,10 +26,12 @@ __all__ = [
     "__version__",
     "ExperimentResult",
     "MeasurementReconstructionResult",
+    "reconstruct_compact_nonnegative",
+    "reconstruct_from_measurements",
+    "reconstruct_from_temperature_field",
+    "reconstruct_smooth_tikhonov",
     "run_compact_parameter_study",
     "run_reconstruction_method_study",
+    "run_regularization_comparison",
     "run_synthetic_benchmark",
-    "reconstruct_from_measurements",
-    "reconstruct_compact_nonnegative",
-    "reconstruct_smooth_tikhonov",
 ]

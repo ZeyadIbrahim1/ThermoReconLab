@@ -7,15 +7,15 @@ simple user-facing experiments.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from numbers import Integral, Real
 from time import perf_counter
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import pandas as pd
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
 from thermoreconlab.analysis import (
     compute_all_metrics,
@@ -23,6 +23,7 @@ from thermoreconlab.analysis import (
     residual_rms,
 )
 from thermoreconlab.core.domain import Domain2D
+from thermoreconlab.core.fields import ensure_2d_array
 from thermoreconlab.core.grid import Grid2D
 from thermoreconlab.data import (
     gaussian_source,
@@ -44,6 +45,7 @@ from thermoreconlab.sensors import (
     create_sensor_data,
     random_sensors,
     regular_grid_sensors,
+    validate_sensor_data_for_grid,
 )
 
 
@@ -181,6 +183,89 @@ def _validate_grid_shape(
     return normalized[0], normalized[1]
 
 
+def _validate_interior_sensor_indices(
+    sensor_indices: Sequence[Sequence[Integral]],
+    grid: Grid2D,
+) -> NDArray[np.int64]:
+    """Validate and copy ordered interior grid-index pairs."""
+    if isinstance(sensor_indices, (str, bytes)):
+        raise ValidationError(
+            "sensor_indices must be a nonempty sequence of index pairs."
+        )
+
+    try:
+        entries = list(sensor_indices)
+    except TypeError as error:
+        raise ValidationError(
+            "sensor_indices must be a nonempty sequence of index pairs."
+        ) from error
+
+    if not entries:
+        raise ValidationError(
+            "sensor_indices must contain at least one index pair."
+        )
+
+    validated: list[tuple[int, int]] = []
+
+    for entry in entries:
+        if isinstance(entry, (str, bytes)):
+            raise ValidationError(
+                "Each sensor index must contain exactly two integers."
+            )
+
+        try:
+            pair = list(entry)
+        except TypeError as error:
+            raise ValidationError(
+                "Each sensor index must contain exactly two integers."
+            ) from error
+
+        if len(pair) != 2:
+            raise ValidationError(
+                "Each sensor index must contain exactly two integers."
+            )
+
+        clean_pair: list[int] = []
+
+        for value in pair:
+            if isinstance(value, (bool, np.bool_)) or not isinstance(
+                value,
+                Integral,
+            ):
+                raise ValidationError(
+                    "Sensor indices must contain integer values; "
+                    "booleans and floating-point values are invalid."
+                )
+
+            clean_pair.append(int(value))
+
+        i, j = clean_pair
+
+        if i < 0 or j < 0:
+            raise ValidationError(
+                "Sensor indices must be nonnegative."
+            )
+
+        if i >= grid.nx or j >= grid.ny:
+            raise ValidationError(
+                "Sensor indices must lie within the grid."
+            )
+
+        if i in {0, grid.nx - 1} or j in {0, grid.ny - 1}:
+            raise ValidationError(
+                "Temperature-field sensor indices must be interior nodes."
+            )
+
+        validated.append((i, j))
+
+    if len(set(validated)) != len(validated):
+        raise ValidationError(
+            "sensor_indices must not contain duplicate pairs."
+        )
+
+    return np.asarray(validated, dtype=np.int64)
+
+
 def _validate_nonnegative_real(
     value: Real,
     name: str,
@@ -250,6 +335,52 @@ def _validate_positive_real(
         raise ValidationError(f"{name} must be greater than zero.")
 
     return result
+
+
+def _validate_regularization_alphas(
+    alpha_by_method: Mapping[str, Real],
+) -> dict[Literal["identity", "smoothness"], float]:
+    """Validate and copy method-specific comparison parameters."""
+    if not isinstance(alpha_by_method, Mapping):
+        raise ValidationError("alpha_by_method must be a mapping.")
+
+    if not alpha_by_method:
+        raise ValidationError("alpha_by_method must not be empty.")
+
+    required_methods = ("identity", "smoothness")
+    unknown_methods = [
+        method
+        for method in alpha_by_method
+        if method not in required_methods
+    ]
+
+    if unknown_methods:
+        raise ValidationError(
+            "alpha_by_method contains unknown method(s): "
+            + ", ".join(repr(method) for method in unknown_methods)
+            + "."
+        )
+
+    missing_methods = [
+        method
+        for method in required_methods
+        if method not in alpha_by_method
+    ]
+
+    if missing_methods:
+        raise ValidationError(
+            "alpha_by_method is missing method(s): "
+            + ", ".join(missing_methods)
+            + "."
+        )
+
+    return {
+        method: _validate_positive_real(
+            alpha_by_method[method],
+            f"alpha for {method}",
+        )
+        for method in required_methods
+    }
 
 
 def _validate_compact_parameter_values(
@@ -607,6 +738,7 @@ def run_synthetic_benchmark(
     num_sensors: int = 25,
     noise_level: Real = 0.02,
     alpha: Real = 1e-3,
+    regularization: Literal["identity", "smoothness"] = "identity",
     seed: int | None = 42,
 ) -> ExperimentResult:
     """Run a complete reproducible synthetic reconstruction benchmark."""
@@ -667,6 +799,7 @@ def run_synthetic_benchmark(
         sensor_data_noisy,
         grid,
         alpha=alpha,
+        regularization=regularization,
     )
 
     metrics = compute_all_metrics(
@@ -697,6 +830,7 @@ def run_synthetic_benchmark(
         "num_sensors": int(num_sensors),
         "noise_level": noise_value,
         "alpha": float(reconstruction.alpha),
+        "regularization": regularization,
         "seed": seed,
     }
 
@@ -719,6 +853,7 @@ def reconstruct_from_measurements(
     grid_shape: tuple[int, int] = (30, 30),
     domain: Domain2D | None = None,
     alpha: Real = 1e-3,
+    regularization: Literal["identity", "smoothness"] = "identity",
 ) -> MeasurementReconstructionResult:
     """Reconstruct a heat source from user-provided measurements.
 
@@ -736,6 +871,8 @@ def reconstruct_from_measurements(
         Optional physical domain. The unit square is used by default.
     alpha:
         Positive Tikhonov regularization parameter.
+    regularization:
+        Identity or unconstrained first-difference regularization.
 
     Returns
     -------
@@ -766,10 +903,13 @@ def reconstruct_from_measurements(
         domain=selected_domain,
     )
 
+    validate_sensor_data_for_grid(sensor_data, grid)
+
     reconstruction = reconstruct_tikhonov(
         sensor_data,
         grid,
         alpha=alpha,
+        regularization=regularization,
     )
 
     runtime = perf_counter() - start_time
@@ -780,6 +920,7 @@ def reconstruct_from_measurements(
         "domain_size": grid.domain.size,
         "num_sensors": len(sensor_data),
         "alpha": float(reconstruction.alpha),
+        "regularization": regularization,
     }
 
     return MeasurementReconstructionResult(
@@ -789,6 +930,260 @@ def reconstruct_from_measurements(
         config=config,
         runtime=float(runtime),
     )
+
+
+def reconstruct_from_temperature_field(
+    temperature_field: ArrayLike,
+    *,
+    grid: Grid2D | None = None,
+    domain: Domain2D | None = None,
+    sensor_indices: Sequence[Sequence[Integral]] | None = None,
+    alpha: Real = 1e-3,
+    regularization: Literal["identity", "smoothness"] = "identity",
+) -> MeasurementReconstructionResult:
+    """Reconstruct a source from a supplied temperature field.
+
+    By default, every interior temperature node is used as a
+    measurement. A custom ordered subset may be supplied, but boundary
+    nodes are intentionally excluded from this workflow.
+    """
+    if grid is not None and not isinstance(grid, Grid2D):
+        raise ValidationError("grid must be a Grid2D object or None.")
+
+    if domain is not None and not isinstance(domain, Domain2D):
+        raise ValidationError("domain must be a Domain2D object or None.")
+
+    if grid is not None and domain is not None:
+        raise ValidationError(
+            "grid and domain must not both be supplied."
+        )
+
+    temperature = ensure_2d_array(
+        temperature_field,
+        name="temperature_field",
+    )
+
+    if temperature.shape[0] < 3 or temperature.shape[1] < 3:
+        raise ValidationError(
+            "temperature_field dimensions must each contain at least "
+            "three grid points."
+        )
+
+    if grid is None:
+        selected_domain = Domain2D() if domain is None else domain
+        resolved_grid = Grid2D(
+            nx=temperature.shape[0],
+            ny=temperature.shape[1],
+            domain=selected_domain,
+        )
+    else:
+        resolved_grid = grid
+
+        if temperature.shape != resolved_grid.shape:
+            raise ValidationError(
+                "temperature_field must have shape "
+                f"{resolved_grid.shape}, but received "
+                f"{temperature.shape}."
+            )
+
+    if sensor_indices is None:
+        measurement_selection = "all_interior"
+        indices = np.asarray(
+            [
+                (i, j)
+                for i in range(1, resolved_grid.nx - 1)
+                for j in range(1, resolved_grid.ny - 1)
+            ],
+            dtype=np.int64,
+        )
+    else:
+        measurement_selection = "custom_indices"
+        indices = _validate_interior_sensor_indices(
+            sensor_indices,
+            resolved_grid,
+        )
+
+    sensor_data = create_sensor_data(
+        temperature,
+        indices,
+        resolved_grid,
+    )
+    measurement_result = reconstruct_from_measurements(
+        sensor_data,
+        grid_shape=resolved_grid.shape,
+        domain=resolved_grid.domain,
+        alpha=alpha,
+        regularization=regularization,
+    )
+    number_of_measurements = len(sensor_data)
+    config: dict[str, Any] = {
+        "mode": "temperature_field",
+        "grid_shape": resolved_grid.shape,
+        "domain_size": resolved_grid.domain.size,
+        "num_sensors": number_of_measurements,
+        "num_measurements": number_of_measurements,
+        "measurement_selection": measurement_selection,
+        "alpha": float(measurement_result.reconstruction.alpha),
+        "regularization": measurement_result.config["regularization"],
+    }
+
+    return MeasurementReconstructionResult(
+        grid=measurement_result.grid,
+        sensor_data=measurement_result.sensor_data,
+        reconstruction=measurement_result.reconstruction,
+        config=config,
+        runtime=measurement_result.runtime,
+    )
+
+
+def run_regularization_comparison(
+    alpha_by_method: Mapping[str, Real],
+    *,
+    grid_shape: tuple[int, int] = (30, 30),
+    domain: Domain2D | None = None,
+    source_type: str = "two_gaussians",
+    sensor_strategy: str = "regular",
+    num_sensors: int = 25,
+    noise_level: Real = 0.02,
+    seed: int | None = 42,
+) -> tuple[pd.DataFrame, list[ExperimentResult]]:
+    """Compare identity and smoothness penalties on one benchmark.
+
+    The two regularizers use caller-selected alpha values because their
+    penalty operators have different numerical scales. Both inverse
+    solves share the same source, temperature, sensor layout, and noisy
+    measurements.
+    """
+    alpha_values = _validate_regularization_alphas(alpha_by_method)
+    nx, ny = _validate_grid_shape(grid_shape)
+    noise_value = _validate_nonnegative_real(
+        noise_level,
+        "noise_level",
+    )
+
+    if domain is None:
+        selected_domain = Domain2D()
+    elif isinstance(domain, Domain2D):
+        selected_domain = domain
+    else:
+        raise ValidationError(
+            "domain must be a Domain2D object or None."
+        )
+
+    source_seed, sensor_seed, noise_seed = _derived_seeds(seed)
+    shared_start_time = perf_counter()
+    grid = Grid2D(nx=nx, ny=ny, domain=selected_domain)
+    true_source = _create_synthetic_source(
+        grid,
+        source_type,
+        seed=source_seed,
+    )
+    temperature = solve_forward(true_source, grid)
+    sensor_indices = _place_sensors(
+        grid,
+        sensor_strategy,
+        num_sensors,
+        seed=sensor_seed,
+    )
+    sensor_data_clean = create_sensor_data(
+        temperature,
+        sensor_indices,
+        grid,
+    )
+    sensor_data_noisy = add_noise_to_sensor_data(
+        sensor_data_clean,
+        noise_level=noise_value,
+        seed=noise_seed,
+        relative=True,
+    )
+    shared_runtime = perf_counter() - shared_start_time
+
+    source_name = _normalize_choice(source_type, "source_type")
+    strategy_name = _normalize_choice(
+        sensor_strategy,
+        "sensor_strategy",
+    )
+    results: list[ExperimentResult] = []
+    rows: list[dict[str, Any]] = []
+
+    for method in ("identity", "smoothness"):
+        alpha = alpha_values[method]
+        reconstruction = reconstruct_tikhonov(
+            sensor_data_noisy,
+            grid,
+            alpha=alpha,
+            regularization=method,
+        )
+        metrics = compute_all_metrics(
+            true_source,
+            reconstruction.source,
+        )
+        metrics.update(
+            _measurement_metrics(
+                reconstruction,
+                sensor_data_noisy.values,
+            )
+        )
+        config: dict[str, Any] = {
+            "mode": "synthetic_benchmark",
+            "study_type": "regularization_comparison",
+            "regularization": method,
+            "alpha": alpha,
+            "grid_shape": grid.shape,
+            "domain_size": grid.domain.size,
+            "source_type": source_name,
+            "sensor_strategy": strategy_name,
+            "num_sensors": int(num_sensors),
+            "noise_level": noise_value,
+            "seed": seed,
+        }
+        result = ExperimentResult(
+            grid=grid,
+            true_source=true_source,
+            temperature=temperature,
+            sensor_data_clean=sensor_data_clean,
+            sensor_data_noisy=sensor_data_noisy,
+            reconstruction=reconstruction,
+            metrics=metrics,
+            config=config,
+            runtime=float(shared_runtime + reconstruction.runtime),
+        )
+        results.append(result)
+        rows.append(
+            {
+                "regularization": method,
+                "alpha": alpha,
+                "sensor_count": reconstruction.n_sensors,
+                "rmse": metrics["rmse"],
+                "mae": metrics["mae"],
+                "relative_l2_error": metrics["relative_l2_error"],
+                "max_absolute_error": metrics[
+                    "max_absolute_error"
+                ],
+                "residual_norm": metrics["residual_norm"],
+                "relative_residual": metrics["relative_residual"],
+                "residual_rms": metrics["residual_rms"],
+                "solution_norm": metrics["solution_norm"],
+                "runtime_seconds": float(reconstruction.runtime),
+            }
+        )
+
+    columns = [
+        "regularization",
+        "alpha",
+        "sensor_count",
+        "rmse",
+        "mae",
+        "relative_l2_error",
+        "max_absolute_error",
+        "residual_norm",
+        "relative_residual",
+        "residual_rms",
+        "solution_norm",
+        "runtime_seconds",
+    ]
+
+    return pd.DataFrame(rows, columns=columns), results
 
 
 def run_regularization_study(

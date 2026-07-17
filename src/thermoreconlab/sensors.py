@@ -116,6 +116,16 @@ class SensorData:
 
         coordinates = None
         coordinate_columns = {"x", "y"}
+        supplied_coordinate_columns = coordinate_columns.intersection(
+            dataframe.columns
+        )
+
+        if supplied_coordinate_columns and (
+            supplied_coordinate_columns != coordinate_columns
+        ):
+            raise ValidationError(
+                "Coordinate columns x and y must be supplied together."
+            )
 
         if coordinate_columns.issubset(dataframe.columns):
             coordinates = dataframe[["x", "y"]].to_numpy()
@@ -265,6 +275,77 @@ def _validate_measurements(
         )
 
     return array.copy()
+
+
+def validate_sensor_data_for_grid(
+    sensor_data: SensorData,
+    grid: Grid2D,
+    *,
+    coordinate_tolerance: Real = 1e-6,
+) -> None:
+    """Validate sensor locations against one reconstruction grid.
+
+    Grid indices are authoritative. Optional physical coordinates are
+    metadata and must match ``grid.x[i]`` and ``grid.y[j]`` using zero
+    relative tolerance and the supplied absolute tolerance. The default
+    ``1e-6`` tolerance supports decimal CSV coordinates without silently
+    remapping sensors. Datasets containing only homogeneous Dirichlet
+    boundary measurements are rejected because they provide no
+    source-identifying information.
+    """
+    if not isinstance(sensor_data, SensorData):
+        raise ValidationError("sensor_data must be a SensorData object.")
+
+    if not isinstance(grid, Grid2D):
+        raise ValidationError("grid must be a Grid2D object.")
+
+    tolerance = _validate_nonnegative_real(
+        coordinate_tolerance,
+        "coordinate_tolerance",
+    )
+    indices = _validate_index_array(
+        sensor_data.indices,
+        grid=grid,
+    )
+
+    if sensor_data.coordinates is not None:
+        expected_coordinates = np.column_stack(
+            (
+                grid.x[indices[:, 0]],
+                grid.y[indices[:, 1]],
+            )
+        )
+
+        for row in range(len(indices)):
+            for axis, column in (("x", 0), ("y", 1)):
+                supplied = float(sensor_data.coordinates[row, column])
+                expected = float(expected_coordinates[row, column])
+
+                if not np.isclose(
+                    supplied,
+                    expected,
+                    rtol=0.0,
+                    atol=tolerance,
+                ):
+                    raise ValidationError(
+                        f"Sensor row {row} has an inconsistent {axis} "
+                        f"coordinate: supplied {supplied}, expected "
+                        f"{expected}, tolerance {tolerance}."
+                    )
+
+    on_boundary = (
+        (indices[:, 0] == 0)
+        | (indices[:, 0] == grid.nx - 1)
+        | (indices[:, 1] == 0)
+        | (indices[:, 1] == grid.ny - 1)
+    )
+
+    if np.all(on_boundary):
+        raise ValidationError(
+            "All sensors lie on the homogeneous Dirichlet boundary; "
+            "boundary measurements contain no source-identifying "
+            "information."
+        )
 
 
 def _candidate_indices(

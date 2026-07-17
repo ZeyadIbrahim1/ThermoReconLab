@@ -18,6 +18,7 @@ from thermoreconlab.sensors import (
     random_sensors,
     regular_grid_sensors,
     sample_field,
+    validate_sensor_data_for_grid,
 )
 
 
@@ -304,3 +305,257 @@ def test_sensor_placement_rejects_invalid_count(
             grid,
             count=invalid_count,  # type: ignore[arg-type]
         )
+
+
+def sensor_data_with_grid_coordinates(
+    grid: Grid2D,
+    indices: np.ndarray,
+) -> SensorData:
+    coordinates = np.column_stack(
+        (
+            grid.x[indices[:, 0]],
+            grid.y[indices[:, 1]],
+        )
+    )
+    return SensorData(
+        indices=indices,
+        values=np.linspace(0.1, 0.2, len(indices)),
+        coordinates=coordinates,
+    )
+
+
+def test_grid_sensor_validator_accepts_correct_coordinates() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[1, 2], [4, 5]]),
+    )
+
+    validate_sensor_data_for_grid(sensor_data, grid)
+
+
+def test_grid_sensor_validator_accepts_coordinates_within_tolerance() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[1, 2], [4, 5]]),
+    )
+    coordinates = sensor_data.coordinates.copy()
+    coordinates += 0.5e-6
+    rounded_sensor_data = SensorData(
+        indices=sensor_data.indices,
+        values=sensor_data.values,
+        coordinates=coordinates,
+    )
+
+    validate_sensor_data_for_grid(rounded_sensor_data, grid)
+
+
+def test_grid_sensor_validator_rejects_coordinate_beyond_tolerance() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[1, 2]]),
+    )
+    coordinates = sensor_data.coordinates.copy()
+    coordinates[0, 0] += 2e-6
+    inconsistent = SensorData(
+        indices=sensor_data.indices,
+        values=sensor_data.values,
+        coordinates=coordinates,
+    )
+
+    with pytest.raises(ValidationError):
+        validate_sensor_data_for_grid(inconsistent, grid)
+
+
+@pytest.mark.parametrize(
+    ("axis", "column"),
+    [("x", 0), ("y", 1)],
+)
+def test_grid_sensor_validator_identifies_coordinate_mismatch(
+    axis: str,
+    column: int,
+) -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[1, 2], [4, 5]]),
+    )
+    coordinates = sensor_data.coordinates.copy()
+    coordinates[1, column] += 0.01
+    inconsistent = SensorData(
+        indices=sensor_data.indices,
+        values=sensor_data.values,
+        coordinates=coordinates,
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=rf"row 1.*{axis} coordinate.*supplied.*expected.*tolerance",
+    ):
+        validate_sensor_data_for_grid(inconsistent, grid)
+
+
+def test_grid_sensor_validator_accepts_missing_coordinates() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = SensorData(
+        indices=np.array([[1, 2], [4, 5]]),
+        values=np.array([0.1, 0.2]),
+    )
+
+    validate_sensor_data_for_grid(sensor_data, grid)
+
+
+@pytest.mark.parametrize(
+    "indices",
+    [
+        np.array([[6, 2]]),
+        np.array([[2, 7]]),
+    ],
+)
+def test_grid_sensor_validator_rejects_out_of_range_indices(
+    indices: np.ndarray,
+) -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = SensorData(indices=indices, values=np.array([0.1]))
+
+    with pytest.raises(ValidationError):
+        validate_sensor_data_for_grid(sensor_data, grid)
+
+
+def test_grid_sensor_validator_rejects_invalid_objects() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = SensorData(
+        indices=np.array([[1, 2]]),
+        values=np.array([0.1]),
+    )
+
+    with pytest.raises(ValidationError, match="sensor_data"):
+        validate_sensor_data_for_grid(object(), grid)  # type: ignore[arg-type]
+
+    with pytest.raises(ValidationError, match="grid"):
+        validate_sensor_data_for_grid(  # type: ignore[arg-type]
+            sensor_data,
+            object(),
+        )
+
+
+@pytest.mark.parametrize(
+    "invalid_tolerance",
+    [-1e-6, True, np.nan, np.inf, -np.inf],
+)
+def test_grid_sensor_validator_rejects_invalid_tolerance(
+    invalid_tolerance: object,
+) -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = SensorData(
+        indices=np.array([[1, 2]]),
+        values=np.array([0.1]),
+    )
+
+    with pytest.raises(ValidationError):
+        validate_sensor_data_for_grid(
+            sensor_data,
+            grid,
+            coordinate_tolerance=invalid_tolerance,  # type: ignore[arg-type]
+        )
+
+
+def test_grid_sensor_validator_rejects_all_boundary_sensors() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[0, 2], [5, 4], [3, 0], [2, 6]]),
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="no source-identifying information",
+    ):
+        validate_sensor_data_for_grid(sensor_data, grid)
+
+
+def test_grid_sensor_validator_accepts_mixed_sensors_without_changes() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[0, 2], [3, 4], [5, 1]]),
+    )
+    original_indices = sensor_data.indices.copy()
+    original_values = sensor_data.values.copy()
+    original_coordinates = sensor_data.coordinates.copy()
+
+    validate_sensor_data_for_grid(sensor_data, grid)
+
+    assert np.array_equal(sensor_data.indices, original_indices)
+    assert np.array_equal(sensor_data.values, original_values)
+    assert np.array_equal(sensor_data.coordinates, original_coordinates)
+
+
+def test_grid_sensor_validator_accepts_interior_only_sensors() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    sensor_data = sensor_data_with_grid_coordinates(
+        grid,
+        np.array([[1, 2], [3, 4]]),
+    )
+
+    validate_sensor_data_for_grid(sensor_data, grid)
+
+
+def test_grid_sensor_validator_does_not_modify_coordinate_input() -> None:
+    grid = Grid2D(nx=6, ny=7)
+    indices = np.array([[1, 2], [3, 4]])
+    coordinates = np.column_stack(
+        (grid.x[indices[:, 0]], grid.y[indices[:, 1]])
+    )
+    original = coordinates.copy()
+    sensor_data = SensorData(
+        indices=indices,
+        values=np.array([0.1, 0.2]),
+        coordinates=coordinates,
+    )
+
+    validate_sensor_data_for_grid(sensor_data, grid)
+
+    assert np.array_equal(coordinates, original)
+
+
+def test_sensor_dataframe_without_coordinates_remains_supported() -> None:
+    dataframe = pd.DataFrame(
+        {"i": [1], "j": [2], "value": [0.1]}
+    )
+
+    sensor_data = SensorData.from_dataframe(dataframe)
+
+    assert sensor_data.coordinates is None
+
+
+def test_sensor_dataframe_with_both_coordinates_remains_supported() -> None:
+    dataframe = pd.DataFrame(
+        {"i": [1], "j": [2], "value": [0.1], "x": [0.2], "y": [0.3]}
+    )
+
+    sensor_data = SensorData.from_dataframe(dataframe)
+
+    assert np.array_equal(sensor_data.coordinates, [[0.2, 0.3]])
+
+
+@pytest.mark.parametrize("coordinate_column", ["x", "y"])
+def test_sensor_dataframe_rejects_partial_coordinates(
+    coordinate_column: str,
+) -> None:
+    dataframe = pd.DataFrame(
+        {
+            "i": [1],
+            "j": [2],
+            "value": [0.1],
+            coordinate_column: [0.2],
+        }
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="x and y must be supplied together",
+    ):
+        SensorData.from_dataframe(dataframe)

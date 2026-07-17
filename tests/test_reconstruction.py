@@ -9,6 +9,7 @@ from thermoreconlab.data import gaussian_source
 from thermoreconlab.exceptions import SolverError, ValidationError
 from thermoreconlab.reconstruction import (
     ReconstructionResult,
+    _build_interior_gradient_matrix,
     build_observation_matrix,
     reconstruct_compact_nonnegative,
     reconstruct_smooth_tikhonov,
@@ -702,3 +703,256 @@ def test_positive_beta_increases_near_zero_interior_values() -> None:
     )
 
     assert compact_near_zero >= unpenalized_near_zero
+
+
+def test_tikhonov_default_regularization_is_identity() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+
+    default = reconstruct_tikhonov(sensor_data, grid, alpha=1e-4)
+    explicit = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="identity",
+    )
+
+    assert np.array_equal(default.source, explicit.source)
+    assert np.array_equal(
+        default.predicted_measurements,
+        explicit.predicted_measurements,
+    )
+
+
+def test_identity_tikhonov_matches_previous_dual_formula() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+    alpha = 1e-4
+    observation_matrix = build_observation_matrix(
+        sensor_data.indices,
+        grid,
+    )
+    measurements = sensor_data.values.astype(float, copy=True)
+    expected_weights = np.linalg.solve(
+        observation_matrix @ observation_matrix.T
+        + alpha * np.eye(len(measurements)),
+        measurements,
+    )
+    expected_source = observation_matrix.T @ expected_weights
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=alpha,
+    )
+
+    assert np.allclose(
+        result.source[1:-1, 1:-1].ravel(order="C"),
+        expected_source,
+        rtol=1e-13,
+        atol=1e-13,
+    )
+
+
+def test_unconstrained_smoothness_result_is_finite() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+
+    assert isinstance(result, ReconstructionResult)
+    assert result.source.shape == grid.shape
+    assert result.predicted_measurements.shape == (
+        len(sensor_data),
+    )
+    assert np.all(np.isfinite(result.source))
+    assert np.all(np.isfinite(result.predicted_measurements))
+    assert np.isfinite(result.residual_norm)
+    assert np.isfinite(result.solution_norm)
+    assert np.isfinite(result.runtime)
+
+
+def test_unconstrained_smoothness_is_deterministic() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+
+    first = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+    second = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+
+    assert np.array_equal(first.source, second.source)
+    assert np.array_equal(
+        first.predicted_measurements,
+        second.predicted_measurements,
+    )
+
+
+def test_unconstrained_smoothness_works_on_rectangular_grid() -> None:
+    grid = Grid2D(nx=7, ny=9)
+    source = gaussian_source(grid, sigma=0.14)
+    indices = regular_grid_sensors(grid, count=12)
+    sensor_data = create_sensor_data(
+        solve_forward(source, grid),
+        indices,
+        grid,
+    )
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+
+    assert result.source.shape == (7, 9)
+    assert np.all(np.isfinite(result.source))
+
+
+@pytest.mark.parametrize(
+    "invalid_regularization",
+    ["unknown", "", True, 1, None],
+)
+def test_tikhonov_rejects_invalid_regularization(
+    invalid_regularization: object,
+) -> None:
+    grid = Grid2D(nx=5, ny=5)
+    sensor_data = SensorData(
+        indices=np.array([[2, 2]]),
+        values=np.array([1.0]),
+    )
+
+    with pytest.raises(ValidationError):
+        reconstruct_tikhonov(
+            sensor_data,
+            grid,
+            regularization=invalid_regularization,  # type: ignore[arg-type]
+        )
+
+
+def test_interior_gradient_matrix_has_expected_structure() -> None:
+    grid = Grid2D(nx=7, ny=8)
+    interior_nx = grid.nx - 2
+    interior_ny = grid.ny - 2
+    matrix = _build_interior_gradient_matrix(grid)
+
+    assert matrix.shape == (
+        (interior_nx - 1) * interior_ny
+        + interior_nx * (interior_ny - 1),
+        interior_nx * interior_ny,
+    )
+    assert np.allclose(
+        matrix @ np.ones(matrix.shape[1]),
+        0.0,
+    )
+    nonconstant = np.arange(matrix.shape[1], dtype=float)
+    assert np.linalg.norm(matrix @ nonconstant) > 0.0
+
+
+def test_unconstrained_smoothness_matches_augmented_reference() -> None:
+    grid = Grid2D(nx=5, ny=5)
+    source = gaussian_source(grid, sigma=0.15)
+    indices = regular_grid_sensors(grid, count=9)
+    sensor_data = create_sensor_data(
+        solve_forward(source, grid),
+        indices,
+        grid,
+    )
+    alpha = 1e-4
+    observation_matrix = build_observation_matrix(indices, grid)
+    gradient_matrix = _build_interior_gradient_matrix(grid).toarray()
+    augmented_matrix = np.vstack(
+        (
+            observation_matrix,
+            np.sqrt(alpha) * gradient_matrix,
+        )
+    )
+    augmented_values = np.concatenate(
+        (
+            sensor_data.values,
+            np.zeros(gradient_matrix.shape[0]),
+        )
+    )
+    expected, _, _, _ = np.linalg.lstsq(
+        augmented_matrix,
+        augmented_values,
+        rcond=None,
+    )
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=alpha,
+        regularization="smoothness",
+    )
+
+    assert np.allclose(
+        result.source[1:-1, 1:-1].ravel(order="C"),
+        expected,
+        rtol=1e-7,
+        atol=1e-9,
+    )
+
+
+def test_unconstrained_smoothness_does_not_clip_negative_values() -> None:
+    grid = Grid2D(nx=3, ny=3)
+    sensor_data = SensorData(
+        indices=np.array([[1, 1]]),
+        values=np.array([-1.0]),
+    )
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+
+    assert result.source[1, 1] < 0.0
+
+
+def test_unconstrained_smoothness_predictions_match_forward_sampling() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+    direct_predictions = sample_field(
+        solve_forward(result.source, grid),
+        sensor_data.indices,
+        grid,
+    )
+
+    assert np.allclose(
+        result.predicted_measurements,
+        direct_predictions,
+        atol=1e-10,
+    )
+
+
+def test_unconstrained_smoothness_preserves_zero_boundary() -> None:
+    grid, _, sensor_data = create_smooth_reconstruction_problem()
+
+    result = reconstruct_tikhonov(
+        sensor_data,
+        grid,
+        alpha=1e-4,
+        regularization="smoothness",
+    )
+
+    assert np.allclose(result.source[0, :], 0.0)
+    assert np.allclose(result.source[-1, :], 0.0)
+    assert np.allclose(result.source[:, 0], 0.0)
+    assert np.allclose(result.source[:, -1], 0.0)

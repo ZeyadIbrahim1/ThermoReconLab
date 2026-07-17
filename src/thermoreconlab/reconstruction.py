@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from numbers import Integral, Real
 from time import perf_counter
+from typing import Literal
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -90,6 +91,23 @@ def _validate_alpha(alpha: Real) -> float:
     return alpha_value
 
 
+def _validate_regularization(
+    regularization: object,
+) -> Literal["identity", "smoothness"]:
+    """Validate the Tikhonov regularization operator selection."""
+    if not isinstance(regularization, str):
+        raise ValidationError(
+            "regularization must be 'identity' or 'smoothness'."
+        )
+
+    if regularization not in {"identity", "smoothness"}:
+        raise ValidationError(
+            "regularization must be 'identity' or 'smoothness'."
+        )
+
+    return regularization
+
+
 def _validate_beta(beta: Real) -> float:
     """Validate a finite nonnegative compactness parameter."""
     if isinstance(beta, bool) or not isinstance(beta, Real):
@@ -142,7 +160,6 @@ def _validate_tolerance(tolerance: Real) -> float:
     return tolerance_value
 
 
-
 def _build_interior_gradient_matrix(
     grid: Grid2D,
 ) -> csr_matrix:
@@ -181,6 +198,7 @@ def _build_interior_gradient_matrix(
             row += 1
 
     return matrix.tocsr()
+
 
 def solve_forward(
     source: ArrayLike,
@@ -293,11 +311,18 @@ def reconstruct_tikhonov(
     sensor_data: SensorData,
     grid: Grid2D,
     alpha: Real = 1e-3,
+    *,
+    regularization: Literal["identity", "smoothness"] = "identity",
 ) -> ReconstructionResult:
-    """Reconstruct the interior source with identity Tikhonov.
+    """Reconstruct the interior source with Tikhonov regularization.
 
-    The solver minimizes ``||Hq-y||^2 + alpha||q||^2`` and uses the
-    dual formula ``q = H.T solve(H H.T + alpha I, y)``.
+    Identity regularization minimizes
+    ``||Hq-y||^2 + alpha||q||^2`` using the existing dual formula.
+    Smoothness regularization minimizes
+    ``||Hq-y||^2 + alpha||Lq||^2`` through an augmented least-squares
+    system. ``L`` contains first differences scaled by ``grid.dx`` and
+    ``grid.dy``, so alpha has units consistent with physical spatial
+    derivatives.
     """
     if not isinstance(sensor_data, SensorData):
         raise ValidationError(
@@ -308,6 +333,7 @@ def reconstruct_tikhonov(
         raise ValidationError("grid must be a Grid2D object.")
 
     alpha_value = _validate_alpha(alpha)
+    regularization_value = _validate_regularization(regularization)
     validated_indices = custom_sensors(
         sensor_data.indices,
         grid,
@@ -322,25 +348,75 @@ def reconstruct_tikhonov(
     measurements = sensor_data.values.astype(float, copy=True)
 
     n_sensors = len(measurements)
-    dual_matrix = (
-        observation_matrix @ observation_matrix.T
-        + alpha_value * np.eye(n_sensors)
-    )
 
-    try:
-        dual_weights = np.linalg.solve(
-            dual_matrix,
-            measurements,
+    if regularization_value == "identity":
+        dual_matrix = (
+            observation_matrix @ observation_matrix.T
+            + alpha_value * np.eye(n_sensors)
         )
-    except np.linalg.LinAlgError as error:
-        raise SolverError(
-            "The Tikhonov system could not be solved."
-        ) from error
 
-    interior_source = observation_matrix.T @ dual_weights
+        try:
+            dual_weights = np.linalg.solve(
+                dual_matrix,
+                measurements,
+            )
+        except np.linalg.LinAlgError as error:
+            raise SolverError(
+                "The Tikhonov system could not be solved."
+            ) from error
+
+        interior_source = observation_matrix.T @ dual_weights
+    else:
+        gradient_matrix = _build_interior_gradient_matrix(grid)
+        augmented_matrix = vstack(
+            (
+                csr_matrix(observation_matrix),
+                np.sqrt(alpha_value) * gradient_matrix,
+            ),
+            format="csr",
+        )
+        augmented_values = np.concatenate(
+            (
+                measurements,
+                np.zeros(gradient_matrix.shape[0], dtype=float),
+            )
+        )
+
+        try:
+            optimization = lsq_linear(
+                augmented_matrix,
+                augmented_values,
+                bounds=(-np.inf, np.inf),
+                method="trf",
+                tol=1e-10,
+                lsmr_tol=1e-10,
+            )
+        except (RuntimeError, ValueError) as error:
+            raise SolverError(
+                "The smoothness Tikhonov system could not be solved."
+            ) from error
+
+        if not optimization.success:
+            raise SolverError(
+                "The smoothness Tikhonov solver did not converge."
+            )
+
+        interior_source = np.asarray(
+            optimization.x,
+            dtype=float,
+        )
+
     predicted_measurements = (
         observation_matrix @ interior_source
     )
+
+    if not (
+        np.all(np.isfinite(interior_source))
+        and np.all(np.isfinite(predicted_measurements))
+    ):
+        raise SolverError(
+            "The Tikhonov solver produced non-finite values."
+        )
 
     full_source_vector = np.zeros(grid.size, dtype=float)
     interior_indices = _interior_flat_indices(grid)
@@ -367,6 +443,7 @@ def reconstruct_tikhonov(
         runtime=float(runtime),
         n_sensors=n_sensors,
     )
+
 
 def reconstruct_smooth_tikhonov(
     sensor_data: SensorData,
