@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "seed": 5401,
+  "partition_seed": 5402,
+  "dataset_directory": "data_external/phase5_dataset_smoke",
+  "base_model_configuration": "research/ai/configs/model_smoke.json",
+  "validation_select_count": 2,
+  "validation_calibration_count": 1,
+  "model_runs": [
+    {"name": "full_residual_attention", "attention": true, "prediction_mode": "residual", "input_channel_mask": [1, 1, 1, 1], "epochs": 2, "batch_size": 2, "workers": 0, "device_policy": "cpu"},
+    {"name": "residual_no_attention", "attention": false, "prediction_mode": "residual", "input_channel_mask": [1, 1, 1, 1], "epochs": 2, "batch_size": 2, "workers": 0, "device_policy": "cpu"},
+    {"name": "direct_sparse_mask", "attention": true, "prediction_mode": "direct", "input_channel_mask": [1, 1, 0, 0], "epochs": 2, "batch_size": 2, "workers": 0, "device_policy": "cpu"}
+  ],
+  "checkpoint_directory": "research/ai/checkpoints/task4_smoke",
+  "output_directory": "research/ai/outputs/evaluation_smoke",
+  "log_directory": "research/ai/logs/task4_smoke",
+  "test_roles": ["test_id", "test_ood_shape", "test_ood_sensor", "test_ood_noise"],
+  "bootstrap_repetitions": 50,
+  "bootstrap_confidence_level": 0.9,
+  "uncertainty_method": "mc_dropout",
+  "mc_dropout_passes": 4,
+  "uncertainty_std_floor": 0.000001,
+  "target_interval_coverage": 0.9,
+  "evaluation_batch_size": 2,
+  "preview_sample_count": 1,
+  "physics_evaluation_enabled": true,
+  "external_manifest": "data_external/external_pr_manifest.json",
+  "sensor_count_bins": [0, 10, 1000000]
+}

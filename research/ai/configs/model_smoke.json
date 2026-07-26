@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_label": "Functional smoke run only - Not a scientific performance result",
+  "seed": 5301,
+  "dataset_directory": "data_external/phase5_dataset_smoke",
+  "output_directory": "research/ai/outputs/training_smoke",
+  "checkpoint_directory": "research/ai/checkpoints/task3_smoke",
+  "log_directory": "research/ai/logs/task3_smoke",
+  "device_policy": "auto",
+  "architecture": {
+    "input_channels": 4,
+    "output_channels": 1,
+    "base_channels": 4,
+    "depth": 2,
+    "dropout": 0.0,
+    "upsampling": "bilinear"
+  },
+  "nonnegative_policy": "softplus",
+  "batch_size": 2,
+  "workers": 0,
+  "epochs": 3,
+  "optimizer": {"name": "AdamW", "learning_rate": 0.001, "weight_decay": 0.0001},
+  "scheduler": {"name": "none"},
+  "loss_weights": {"mse": 1.0, "l1": 0.1, "gradient": 0.05},
+  "mixed_precision": true,
+  "gradient_clip_norm": 1.0,
+  "early_stopping": {"patience": 3, "minimum_improvement": 0.0},
+  "history_format": "jsonl",
+  "resume": null,
+  "torch_compile": false,
+  "functional_only": true
+}

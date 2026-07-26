@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "thermoreconlab"
 version = "0.1.0"
-description = "A Python package for reproducible 2D heat-source reconstruction from sparse temperature sensor measurements."
+description = "Finite-difference 2D heat-source reconstruction from sparse or full temperature measurements."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

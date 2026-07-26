@@ -9,6 +9,8 @@ env/
 
 # Testing and coverage
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 
@@ -19,6 +21,8 @@ dist/
 
 # Jupyter
 .ipynb_checkpoints/
+notebooks/*.ipynb
+!notebooks/demo_presentation_final.ipynb
 
 # Editors
 .vscode/
@@ -31,3 +35,29 @@ Thumbs.db
 # Generated project outputs
 outputs/*
 !outputs/.gitkeep
+
+# Optional Phase 5 research data and generated artifacts
+data_external/
+research/ai/outputs/
+research/ai/checkpoints/
+research/ai/logs/
+research/ai/cache/
+research/ai/**/*.h5
+research/ai/**/*.hdf5
+research/ai/**/*.zip
+research/ai/**/*.tar
+research/ai/**/*.tar.gz
+research/ai/**/*.pt
+research/ai/**/*.pth
+
+# Local presentation and delivery material
+presentations/
+deliverables/
+
+# Local review and tool artifacts
+.agents/
+project_inventory.txt
+submission_audit_final.txt
+ThermoReconLab_code_review.zip
+ThermoReconLab_*Prompt*.txt
+ThermoReconLab_*Handover*.txt

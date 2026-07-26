@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "dataset_directory": "data_external/phase5_dataset_default",
+  "evaluation_directory": "research/ai/outputs/evaluation_default",
+  "evaluation_log_directory": "research/ai/logs/task4_default",
+  "checkpoint_directory": "research/ai/checkpoints/task4_default",
+  "external_manifest": "data_external/external_pr_manifest.json",
+  "final_output_directory": "research/ai/outputs/finalization",
+  "final_log_directory": "research/ai/logs/finalization",
+  "tracked_report_path": "research/ai/final_report.md",
+  "tracked_model_card_path": "research/ai/model_card.md",
+  "tracked_manifest_path": "research/ai/reproducibility_manifest.json",
+  "tracked_status_path": "research/ai/FINAL_STATUS.md",
+  "expected_classical_test_count": 643,
+  "expected_research_test_count": 157,
+  "expected_task4_test_count": 40,
+  "external_decision": "no-go",
+  "model_task_type": "synthetic_source",
+  "external_task_type": "external_heat_flux"
+}

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "seed": 5401,
+  "partition_seed": 5402,
+  "dataset_directory": "data_external/phase5_dataset_default",
+  "base_model_configuration": "research/ai/configs/model_default.json",
+  "validation_select_count": 80,
+  "validation_calibration_count": 40,
+  "model_runs": [
+    {"name": "full_residual_attention", "attention": true, "prediction_mode": "residual", "input_channel_mask": [1, 1, 1, 1], "epochs": 60, "batch_size": 16, "workers": 0},
+    {"name": "residual_no_attention", "attention": false, "prediction_mode": "residual", "input_channel_mask": [1, 1, 1, 1], "epochs": 60, "batch_size": 16, "workers": 0},
+    {"name": "direct_sparse_mask", "attention": true, "prediction_mode": "direct", "input_channel_mask": [1, 1, 0, 0], "epochs": 60, "batch_size": 16, "workers": 0}
+  ],
+  "checkpoint_directory": "research/ai/checkpoints/task4_default",
+  "output_directory": "research/ai/outputs/evaluation_default",
+  "log_directory": "research/ai/logs/task4_default",
+  "test_roles": ["test_id", "test_ood_shape", "test_ood_sensor", "test_ood_noise"],
+  "bootstrap_repetitions": 2000,
+  "bootstrap_confidence_level": 0.95,
+  "uncertainty_method": "mc_dropout",
+  "mc_dropout_passes": 30,
+  "uncertainty_std_floor": 0.000001,
+  "target_interval_coverage": 0.9,
+  "evaluation_batch_size": 16,
+  "preview_sample_count": 8,
+  "physics_evaluation_enabled": true,
+  "external_manifest": "data_external/external_pr_manifest.json",
+  "sensor_count_bins": [0, 40, 80, 120, 161]
+}

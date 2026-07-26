@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "run_label": "Future bounded synthetic research training",
+  "seed": 5301,
+  "dataset_directory": "data_external/phase5_dataset_default",
+  "output_directory": "research/ai/outputs/training_default",
+  "checkpoint_directory": "research/ai/checkpoints/task3_default",
+  "log_directory": "research/ai/logs/task3_default",
+  "device_policy": "auto",
+  "architecture": {
+    "input_channels": 4,
+    "output_channels": 1,
+    "base_channels": 32,
+    "depth": 3,
+    "dropout": 0.1,
+    "upsampling": "bilinear"
+  },
+  "nonnegative_policy": "softplus",
+  "batch_size": 16,
+  "workers": 0,
+  "epochs": 100,
+  "optimizer": {"name": "AdamW", "learning_rate": 0.0003, "weight_decay": 0.0001},
+  "scheduler": {"name": "cosine", "minimum_learning_rate": 0.000001},
+  "loss_weights": {"mse": 1.0, "l1": 0.1, "gradient": 0.05},
+  "mixed_precision": true,
+  "gradient_clip_norm": 1.0,
+  "early_stopping": {"patience": 12, "minimum_improvement": 0.00001},
+  "history_format": "jsonl",
+  "resume": null,
+  "torch_compile": false,
+  "functional_only": false
+}

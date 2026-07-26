@@ -1,0 +1,97 @@
+{
+  "allow_signed_sources": false,
+  "amplitude_range": [
+    0.25,
+    4.0
+  ],
+  "grid_shape": [
+    32,
+    32
+  ],
+  "identity_alpha_choices": [
+    0.0001,
+    0.001,
+    0.01
+  ],
+  "noise_levels": [
+    0.0,
+    0.005,
+    0.01,
+    0.03,
+    0.1
+  ],
+  "normalization": {
+    "enabled": true,
+    "fit_split": "train",
+    "method": "global_standard"
+  },
+  "num_samples": 1200,
+  "ood_noise_levels": [
+    0.1
+  ],
+  "ood_sensor_strategies": [
+    "center_focused"
+  ],
+  "ood_source_families": [
+    "sharp_edged"
+  ],
+  "output_directory": "data_external/phase5_dataset_default",
+  "preview_count": 8,
+  "random_seed": 5102,
+  "schema_version": 2,
+  "sensor_count_range": [
+    24,
+    160
+  ],
+  "sensor_seeds": [
+    9200,
+    9201,
+    9202
+  ],
+  "sensor_strategies": [
+    "regular_grid",
+    "random",
+    "center_focused"
+  ],
+  "signed_probability": 0.0,
+  "size_range": [
+    0.04,
+    0.3
+  ],
+  "smoothness_alpha_choices": [
+    1e-06,
+    1e-05,
+    0.0001
+  ],
+  "source_count_range": [
+    2,
+    5
+  ],
+  "source_family_probabilities": {
+    "circular_compact": 0.12,
+    "elliptical_hotspot": 0.14,
+    "elongated_source": 0.11,
+    "irregular_composite": 0.08,
+    "multiple_gaussians": 0.18,
+    "one_gaussian": 0.15,
+    "overlapping_hotspots": 0.1,
+    "rectangle": 0.12,
+    "sharp_edged": 0.0
+  },
+  "split_rules": {
+    "fractions": {
+      "test_id": 0.1,
+      "test_ood_noise": 0.07,
+      "test_ood_sensor": 0.06,
+      "test_ood_shape": 0.07,
+      "train": 0.6,
+      "validation": 0.1
+    },
+    "method": "stable_source_seed_and_explicit_ood_rules"
+  },
+  "storage_compression": "gzip",
+  "width_range": [
+    0.025,
+    0.16
+  ]
+}

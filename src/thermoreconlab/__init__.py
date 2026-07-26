@@ -1,8 +1,8 @@
 """ThermoReconLab package.
 
 ThermoReconLab provides tools for reproducible two-dimensional
-heat-source reconstruction experiments using sparse temperature
-sensor measurements.
+heat-source reconstruction from sparse sensor measurements or supplied
+temperature fields.
 """
 
 from thermoreconlab.experiments import (

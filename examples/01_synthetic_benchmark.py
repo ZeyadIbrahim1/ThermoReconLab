@@ -33,7 +33,6 @@ def main() -> None:
     exported_files = export_results(
         result,
         output_directory,
-        dpi=160,
     )
 
     print("Synthetic benchmark completed.")

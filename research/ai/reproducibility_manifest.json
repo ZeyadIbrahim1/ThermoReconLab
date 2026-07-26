@@ -1,0 +1,940 @@
+{
+  "artifacts": [
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 5,
+      "path": "README.md",
+      "required": true,
+      "sha256": "a05eee9dc0e1b494c793e8e4f7ba0c11d4e2ea15de6c487be9a9fa520c156b34",
+      "size_bytes": 13556
+    },
+    {
+      "artifact_role": "external_metadata_only",
+      "generated_by_phase": 2,
+      "path": "data_external/external_pr_manifest.json",
+      "required": true,
+      "sha256": "91e4340174dc9de1f0aa399ce47b198d54f515d603bc2a5f674e6de63790021a",
+      "size_bytes": 24702
+    },
+    {
+      "artifact_role": "default_synthetic_dataset",
+      "generated_by_phase": 2,
+      "path": "data_external/phase5_dataset_default/configuration.json",
+      "required": true,
+      "sha256": "c840f5fe0bc78af3cdbcfc1ece815a55ebf7952bb1113b91431cd47e96eba112",
+      "size_bytes": 1771
+    },
+    {
+      "artifact_role": "default_synthetic_dataset",
+      "generated_by_phase": 2,
+      "path": "data_external/phase5_dataset_default/manifest.json",
+      "required": true,
+      "sha256": "e613d980767fe3e657a25570fd9f7fdda8428a5e495acade575a2748f140317d",
+      "size_bytes": 1847045
+    },
+    {
+      "artifact_role": "default_synthetic_dataset",
+      "generated_by_phase": 2,
+      "path": "data_external/phase5_dataset_default/normalization.json",
+      "required": true,
+      "sha256": "32cd3619354fc89f6d3848819f23fd40e93e7926c5071cd8b540f8f4949a6ef0",
+      "size_bytes": 27889
+    },
+    {
+      "artifact_role": "default_synthetic_dataset",
+      "generated_by_phase": 2,
+      "path": "data_external/phase5_dataset_default/synthetic_dataset.h5",
+      "required": true,
+      "sha256": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+      "size_bytes": 33516806
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "examples/01_synthetic_benchmark.py",
+      "required": true,
+      "sha256": "1c9aa5284327aacac5bc2eb817597d03e439b01755866302ee567bf32c8ec7ba",
+      "size_bytes": 1670
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "examples/02_user_sensor_data.py",
+      "required": true,
+      "sha256": "741b4598e23e7ee265018bafd7f8dc5326d89910077f8f3d98fb3db47db93943",
+      "size_bytes": 2741
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "examples/03_parameter_studies.py",
+      "required": true,
+      "sha256": "2478ecc3f2a0f7515d0fe0be7945decb48cd375be81de3b3ca6013291decfa66",
+      "size_bytes": 12874
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "examples/04_final_demo.py",
+      "required": true,
+      "sha256": "8638683d9b99502dcf86e2b49987e6dd82464ea550debbf07631ad08134d8bfd",
+      "size_bytes": 15246
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "examples/data/demo_sensor_measurements.csv",
+      "required": true,
+      "sha256": "264621848d5f2cf970a6c311067f54e41a056ce02a0683a88c7bdcba55f88ae3",
+      "size_bytes": 1066
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "pyproject.toml",
+      "required": true,
+      "sha256": "a894e59f7b0d5ac63498a75af84508eeb7f0ece00cf32f7abd9b3d08ebe677be",
+      "size_bytes": 1519
+    },
+    {
+      "artifact_role": "final_tracked_report",
+      "generated_by_phase": 5,
+      "path": "research/ai/FINAL_STATUS.md",
+      "required": true,
+      "sha256": "d743e8b638639009afc3867a6c71bafeb0c0af6d20089a97c31184a6427d2467",
+      "size_bytes": 1149
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 5,
+      "path": "research/ai/README.md",
+      "required": true,
+      "sha256": "39041e33dc1be55ccaa3833dce579248199c5d905993ebf5f008432694de017a",
+      "size_bytes": 14734
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 2,
+      "path": "research/ai/ai_data.py",
+      "required": true,
+      "sha256": "b4c3caa22ce2546cddcbb98093a5cf18ccab89f7f7d62f886ff909d77fda702b",
+      "size_bytes": 87503
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "research/ai/ai_evaluation.py",
+      "required": true,
+      "sha256": "eb2c44fdfe59a8444de10ebe920e81040fb3230adf63ffc53ef5a2c395f52f19",
+      "size_bytes": 59688
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 5,
+      "path": "research/ai/ai_finalize.py",
+      "required": true,
+      "sha256": "76b704a8ada6c9cea405e573bad531f0ba02ba9e2d4c0ce97227f65326cb8695",
+      "size_bytes": 72174
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 3,
+      "path": "research/ai/ai_model.py",
+      "required": true,
+      "sha256": "3ac9565275bfd794d7f738d1453547f7bdfd198295df17d8cf8d0739abdbc8d0",
+      "size_bytes": 52885
+    },
+    {
+      "artifact_role": "best_checkpoint:direct_sparse_mask",
+      "generated_by_phase": 4,
+      "path": "research/ai/checkpoints/task4_default/direct_sparse_mask/best.pt",
+      "required": true,
+      "sha256": "b3eb88b6f388572fa254b9b2626a55de629420fe954b8595832194af0665d81b",
+      "size_bytes": 23135133
+    },
+    {
+      "artifact_role": "best_checkpoint:full_residual_attention",
+      "generated_by_phase": 4,
+      "path": "research/ai/checkpoints/task4_default/full_residual_attention/best.pt",
+      "required": true,
+      "sha256": "b63c3e23bea84b16f64ab28e668b1587af7a183a3321d5f6f8a9e4365c19022b",
+      "size_bytes": 23135133
+    },
+    {
+      "artifact_role": "best_checkpoint:residual_no_attention",
+      "generated_by_phase": 4,
+      "path": "research/ai/checkpoints/task4_default/residual_no_attention/best.pt",
+      "required": true,
+      "sha256": "b035f779443bef5e8c3ca8a302b772fd2e02b7b3626b0ab819a35607e5b74ed8",
+      "size_bytes": 22740397
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 2,
+      "path": "research/ai/configs/dataset_default.json",
+      "required": true,
+      "sha256": "21a26b460a350ab894d1d7074b471e8d8aa22ddb383145e6c1aff795779426f9",
+      "size_bytes": 1437
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 2,
+      "path": "research/ai/configs/dataset_smoke.json",
+      "required": true,
+      "sha256": "489fd922d9409470c61cb9c0899f438afa5101d59db1ef7cd1f2c33ee418ae44",
+      "size_bytes": 1402
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "research/ai/configs/evaluation_default.json",
+      "required": true,
+      "sha256": "eeaec530d54a568acc36205920856662ff0e0ebd15bb083a3b4f8a758ec7ed54",
+      "size_bytes": 1493
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "research/ai/configs/evaluation_smoke.json",
+      "required": true,
+      "sha256": "3530e994d4a862ce1d6e3c51b65319b6d486f8568aca59a2ff06a1247e60e054",
+      "size_bytes": 1537
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 5,
+      "path": "research/ai/configs/finalization.json",
+      "required": true,
+      "sha256": "aa53e7446cd33854b674f915ab829da13c10bdd68c534c3da18f568f1861940a",
+      "size_bytes": 951
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 3,
+      "path": "research/ai/configs/model_default.json",
+      "required": true,
+      "sha256": "807e8782c789942d3d0cba32feac873370c374437db74d291c0a3512126e911c",
+      "size_bytes": 1071
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 3,
+      "path": "research/ai/configs/model_smoke.json",
+      "required": true,
+      "sha256": "a3b3c69fde7ff1fa4a9b40422516538641bed3453a022731265a51d8cec2f961",
+      "size_bytes": 1036
+    },
+    {
+      "artifact_role": "final_tracked_report",
+      "generated_by_phase": 5,
+      "path": "research/ai/final_report.md",
+      "required": true,
+      "sha256": "f37b26caa42ac1fd0f38383dbde60d8764566e77a915deea2b5fec82714f6fe6",
+      "size_bytes": 6987
+    },
+    {
+      "artifact_role": "task4_evaluation_log",
+      "generated_by_phase": 4,
+      "path": "research/ai/logs/task4_default/checkpoint_verification.json",
+      "required": true,
+      "sha256": "ec615cbb97c9c89a4b0da0aaf210ecf436bbc4e800b26b9a7cc833f1620fd2e0",
+      "size_bytes": 3059
+    },
+    {
+      "artifact_role": "task4_evaluation_log",
+      "generated_by_phase": 4,
+      "path": "research/ai/logs/task4_default/test_sample_ids.json",
+      "required": true,
+      "sha256": "84a249c628b5813b4e23b1521e3ee5e10f5729cc920268ba347e6dc5cea57624",
+      "size_bytes": 13431
+    },
+    {
+      "artifact_role": "task4_evaluation_log",
+      "generated_by_phase": 4,
+      "path": "research/ai/logs/task4_default/training_runs.json",
+      "required": true,
+      "sha256": "5a97609717075a976c15fdc8c81133ff1e5493e097578c66215dc7c3868d2b98",
+      "size_bytes": 107647
+    },
+    {
+      "artifact_role": "task4_evaluation_log",
+      "generated_by_phase": 4,
+      "path": "research/ai/logs/task4_default/validation_partition.json",
+      "required": true,
+      "sha256": "acec5ba41a8e4ef96d29a537d44f028bd323a3c214ac7e5aaa742ed826749682",
+      "size_bytes": 31439
+    },
+    {
+      "artifact_role": "final_tracked_report",
+      "generated_by_phase": 5,
+      "path": "research/ai/model_card.md",
+      "required": true,
+      "sha256": "4a4b5457a056631bc3f8c4837a27f69ce45963795d0e970fb4676c8f87d9c3ea",
+      "size_bytes": 2911
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/ablation_comparison.png",
+      "required": true,
+      "sha256": "bb7c5e7eb1d9f6c9e018af9472d9c0537d6428af39d31bc95b19b24ae97f533a",
+      "size_bytes": 36509
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/aggregate_metrics.csv",
+      "required": true,
+      "sha256": "49f5fecccab9cf2c0c0970258c8dce839cdb2d14f25cf0cbc7128654df83f3fb",
+      "size_bytes": 22759
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/environment.json",
+      "required": true,
+      "sha256": "84fefc95c967d13e690ae972216fc8a7425aa0e84684285527fde30eca8f5b31",
+      "size_bytes": 202
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/evaluation_summary.json",
+      "required": true,
+      "sha256": "b9923251aa915f868053e1fefe92194f94de09f4d69dec8c5f4adbc5d032d8d7",
+      "size_bytes": 339448
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/external_compatibility.json",
+      "required": true,
+      "sha256": "fe2ef13a6c578c4887f3b36fbd1e73f07d4b789241fe45da5c1c61669f21914c",
+      "size_bytes": 538
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/interval_coverage_by_test_role.png",
+      "required": true,
+      "sha256": "c01331938ec094a7fc2982ac91266d4988c11e052f1661064b68b5e393840063",
+      "size_bytes": 30107
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/overall_relative_l2.png",
+      "required": true,
+      "sha256": "e4fcad3d023412b014da899adbdabe043e41bcbd232c7d9305f23a938ecf4837",
+      "size_bytes": 35357
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/overall_source_rmse.png",
+      "required": true,
+      "sha256": "9b586db49a3c73cee40ee24dd76e1ded455ec810388c7bafd5b62f7f9988ac94",
+      "size_bytes": 37084
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/paired_bootstrap.json",
+      "required": true,
+      "sha256": "3090a0edacd9eb800fb101404f1d54482e05164318040064025287b60c4497d3",
+      "size_bytes": 47514
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/paired_difference_distributions.png",
+      "required": true,
+      "sha256": "fb4b822639218f0a3206a3bb22f693143ad829480ee400e7bd7216fd2c053036",
+      "size_bytes": 23966
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/per_sample_metrics.csv",
+      "required": true,
+      "sha256": "1f874706db844b73f08da66b87f73acff6b20827daa0003adbfae90cad7a2d7e",
+      "size_bytes": 1097858
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/per_test_role_comparison.png",
+      "required": true,
+      "sha256": "f8a15c7666ffd506976aa486ffb83067b94c575f44fe6c7ffe7983c1fca7db4f",
+      "size_bytes": 36862
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/physics_temperature_rmse.png",
+      "required": true,
+      "sha256": "2c2af44f56db633fd375086f8a482d7ee69fcad43545c5202f4667a7579f2f52",
+      "size_bytes": 42812
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_01.png",
+      "required": true,
+      "sha256": "53288be4a485dd4c45e3a18d578ef0105eccb77c23912ee687c97217a5b3fa6b",
+      "size_bytes": 39637
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_02.png",
+      "required": true,
+      "sha256": "26172b2f1b42f89b7e1d1ff028c10ec9b2074942bf675f1ef67dc9aaf2fb5955",
+      "size_bytes": 45436
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_03.png",
+      "required": true,
+      "sha256": "f3eb60e70684c6fd0e761fd358f8bf164ecddd11100195bda5a9aa29240579c4",
+      "size_bytes": 39274
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_04.png",
+      "required": true,
+      "sha256": "a144acc132936f26a331e285075c79e34b8414da081ce6dbdc917b57348fd1c6",
+      "size_bytes": 49638
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_05.png",
+      "required": true,
+      "sha256": "e24a96233f368a48adcf1c05373782602bd17cae76adfbb39b90c607f4927ff5",
+      "size_bytes": 43504
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_06.png",
+      "required": true,
+      "sha256": "fcb9965bbd180eab911769827b721951bd745e6f4e100425f8867a7435cc2723",
+      "size_bytes": 45101
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_07.png",
+      "required": true,
+      "sha256": "3ea5ad1a89eda73e420de30f8d4412538f855852fe56e45e8a92e83747688d62",
+      "size_bytes": 44379
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_08.png",
+      "required": true,
+      "sha256": "79a08db36f1dfd11cee5ce4b1a9dd5439c75941bf5246267e2af923c07de46f1",
+      "size_bytes": 50109
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/prediction_error_uncertainty_example.png",
+      "required": true,
+      "sha256": "41992cce44c7ded75dfa8bea5820779dcc3794a92929b02414b9ad16401d98d8",
+      "size_bytes": 43703
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/run_configuration.json",
+      "required": true,
+      "sha256": "79bac08e2a42051adb9024c69b24a56abb446b11da6efd18dfca7c0ef66dfb77",
+      "size_bytes": 1877
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/source_family_subgroup_comparison.png",
+      "required": true,
+      "sha256": "e0031fb691bd6f315baf953e8fa2713dc1d419f74c2b808cede945c80e7b04dc",
+      "size_bytes": 54052
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/stratified_metrics.csv",
+      "required": true,
+      "sha256": "7417db621307d699052a640090025081c2ee2e24a6fb196f00ce70e0163f59ef",
+      "size_bytes": 275474
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/uncertainty_calibration.json",
+      "required": true,
+      "sha256": "d06234c2a54e12dafc58917f4c56ab54f3dd2c07c9299caf4dd3318baa3106c1",
+      "size_bytes": 195430
+    },
+    {
+      "artifact_role": "task4_machine_readable_result",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/uncertainty_per_sample.csv",
+      "required": true,
+      "sha256": "62e5ebfe48cdec1a5db21842ec46694b458a8ea77501e4fe7437468007cb1f17",
+      "size_bytes": 71446
+    },
+    {
+      "artifact_role": "task4_figure",
+      "generated_by_phase": 4,
+      "path": "research/ai/outputs/evaluation_default/uncertainty_versus_error.png",
+      "required": true,
+      "sha256": "f16ed26b7c99e9854178d4247f6f1519ada4c4d1fcb16ee12ea95c08c163698c",
+      "size_bytes": 115053
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 3,
+      "path": "research/ai/requirements-ml.txt",
+      "required": true,
+      "sha256": "6b6554498345b10011004498a93d708b7f7124d44297d48ee1c783d59a3349cd",
+      "size_bytes": 71
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 2,
+      "path": "research/ai/tests/test_ai_data.py",
+      "required": true,
+      "sha256": "6f51b8ba67ba0f1190511b0d2970a8f1fe09ece21d73f27c447da69b13bf8e87",
+      "size_bytes": 43983
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "research/ai/tests/test_ai_evaluation.py",
+      "required": true,
+      "sha256": "b514e5c92dc856946a0f72a5c2a28e4d7df2222ffa147c6d85ba05bb999cff41",
+      "size_bytes": 23922
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 5,
+      "path": "research/ai/tests/test_ai_finalize.py",
+      "required": true,
+      "sha256": "ba2661ea0c7a5284521b9fad41f62d2a7563d5c5ea26ad1c2ea313e17c0b13a0",
+      "size_bytes": 34548
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 3,
+      "path": "research/ai/tests/test_ai_model.py",
+      "required": true,
+      "sha256": "af52d66bc65ba6f30f018d5e15f845646a234f9d78baebc3709cc78a20c83f22",
+      "size_bytes": 21898
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "src/thermoreconlab/__init__.py",
+      "required": true,
+      "sha256": "ecd9eb2d79984cf6d1391a365d0db19b499bfba77fdccdc86a0ef8ebc91a7054",
+      "size_bytes": 1037
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "src/thermoreconlab/reporting.py",
+      "required": true,
+      "sha256": "ff5ffed98bffdc77b492d9d51f81a441d0499ebc9b76a8d0ce279fbc09b47985",
+      "size_bytes": 18657
+    },
+    {
+      "artifact_role": "phase5_source_configuration_test_or_documentation",
+      "generated_by_phase": 4,
+      "path": "tests/test_reporting.py",
+      "required": true,
+      "sha256": "54aeca84dcae4d4221e518f3cb48911995b6aca6956c35698afffacbd186ff8e",
+      "size_bytes": 14881
+    }
+  ],
+  "classical_package": {
+    "expected_test_count": 643,
+    "package_init_version": "0.1.0",
+    "pyproject_version": "0.1.0",
+    "pytorch_required": false,
+    "research_imported_by_package": false,
+    "validated_core": true,
+    "versions_consistent": true
+  },
+  "commands": {
+    "classical_tests": "& \".\\.venv\\Scripts\\python.exe\" -m pytest -q",
+    "research_tests": "& \".\\.venv\\Scripts\\python.exe\" -m pytest research/ai/tests/test_ai_data.py research/ai/tests/test_ai_model.py research/ai/tests/test_ai_evaluation.py research/ai/tests/test_ai_finalize.py -q",
+    "run_all": "& \".\\.venv\\Scripts\\python.exe\" research/ai/ai_finalize.py run-all research/ai/configs/finalization.json",
+    "verify": "& \".\\.venv\\Scripts\\python.exe\" research/ai/ai_finalize.py verify research/ai/configs/finalization.json"
+  },
+  "dataset": {
+    "dataset_total": 1200,
+    "hashes": {
+      "configuration_hash": "b8078eff02f0f1ff7fd7913fa6660193c7de0fff39bcf2f28d517fc85eec1047",
+      "dataset_hdf5_hash": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+      "dataset_manifest_hash": "ce80f6c635db24af393c4c1f4c766e1255e5d171a748dc50e96c8329d6eea9ce",
+      "normalization_hash": "0531e918730dc9153d1d7bc47337cb88f4e921d1c5dbaac89a9bbb34ac42413a"
+    },
+    "split_counts": {
+      "test_id": 120,
+      "test_ood_noise": 84,
+      "test_ood_sensor": 72,
+      "test_ood_shape": 84,
+      "train": 720,
+      "validation": 120
+    },
+    "test_role_counts": {
+      "test_id": 120,
+      "test_ood_noise": 84,
+      "test_ood_sensor": 72,
+      "test_ood_shape": 84
+    },
+    "test_total": 360,
+    "train_count": 720,
+    "validation_calibration_count": 40,
+    "validation_selection_count": 80
+  },
+  "evaluation": {
+    "bootstrap_primary_vs_smoothness": {
+      "confidence_interval": [
+        -0.29286236113366815,
+        -0.24922654399608793
+      ],
+      "difference_convention": "learned metric - baseline metric",
+      "mean_paired_difference": -0.2704102454982816,
+      "sample_count": 360,
+      "win_rate": 0.975
+    },
+    "overall": {
+      "direct_sparse_mask": {
+        "mean_per_sample": {
+          "mae": 0.11433220191128705,
+          "maximum_absolute_error": 1.5119479185010443,
+          "physics_temperature_rmse": 0.0015470465479173307,
+          "relative_l2": 0.46773225796340656,
+          "rmse": 0.24903441135752016
+        },
+        "pooled_global": {
+          "clean_sensor_residual_rms": 0.0019998965671495757,
+          "mae": 0.11433220191128712,
+          "maximum_absolute_error": 4.791578906562347,
+          "noisy_measurement_residual_rms": 0.003328803399032275,
+          "physics_temperature_rmse": 0.0021476177354813088,
+          "relative_l2": 0.41088320943820966,
+          "rmse": 0.3017542944372766
+        },
+        "sample_count": 360
+      },
+      "full_residual_attention": {
+        "mean_per_sample": {
+          "mae": 0.11080556407496558,
+          "maximum_absolute_error": 1.5280591977245617,
+          "physics_temperature_rmse": 0.0017757318154738718,
+          "relative_l2": 0.4638428343660948,
+          "rmse": 0.24748098114205982
+        },
+        "pooled_global": {
+          "clean_sensor_residual_rms": 0.002276333831220478,
+          "mae": 0.11080556407496564,
+          "maximum_absolute_error": 5.0031256253067955,
+          "noisy_measurement_residual_rms": 0.003523844629339162,
+          "physics_temperature_rmse": 0.0023120214600143014,
+          "relative_l2": 0.4061240775213413,
+          "rmse": 0.2982591686674208
+        },
+        "sample_count": 360
+      },
+      "identity": {
+        "mean_per_sample": {
+          "mae": 0.2549488957138826,
+          "maximum_absolute_error": 2.306674474529287,
+          "physics_temperature_rmse": 0.012773946038267722,
+          "relative_l2": 0.8981589684777315,
+          "rmse": 0.5328090992430822
+        },
+        "pooled_global": {
+          "clean_sensor_residual_rms": 0.019840187087152832,
+          "mae": 0.25494889571388263,
+          "maximum_absolute_error": 7.382326328922895,
+          "noisy_measurement_residual_rms": 0.020079431683472402,
+          "physics_temperature_rmse": 0.01812431938682301,
+          "relative_l2": 0.8776314299733321,
+          "rmse": 0.6445360794608159
+        },
+        "sample_count": 360
+      },
+      "residual_no_attention": {
+        "mean_per_sample": {
+          "mae": 0.11394580491568408,
+          "maximum_absolute_error": 1.4580530795481614,
+          "physics_temperature_rmse": 0.0014054112796952178,
+          "relative_l2": 0.44315703001028484,
+          "rmse": 0.24421871226672745
+        },
+        "pooled_global": {
+          "clean_sensor_residual_rms": 0.0018050613202718762,
+          "mae": 0.11394580491568412,
+          "maximum_absolute_error": 4.614053505117129,
+          "noisy_measurement_residual_rms": 0.003182783700871269,
+          "physics_temperature_rmse": 0.001933681042936099,
+          "relative_l2": 0.4094099857271094,
+          "rmse": 0.3006723529724522
+        },
+        "sample_count": 360
+      },
+      "smoothness": {
+        "mean_per_sample": {
+          "mae": 0.395973487244737,
+          "maximum_absolute_error": 1.9882394591100545,
+          "physics_temperature_rmse": 0.004880624361648053,
+          "relative_l2": 0.8855016506667464,
+          "rmse": 0.5178912266403415
+        },
+        "pooled_global": {
+          "clean_sensor_residual_rms": 0.006400887225048929,
+          "mae": 0.39597348724473713,
+          "maximum_absolute_error": 6.7857536751793015,
+          "noisy_measurement_residual_rms": 0.007050084158167938,
+          "physics_temperature_rmse": 0.006234572832639371,
+          "relative_l2": 0.8437404563593838,
+          "rmse": 0.619646411069031
+        },
+        "sample_count": 360
+      }
+    }
+  },
+  "external_compatibility": {
+    "arrays_opened": false,
+    "classical_q_target": false,
+    "decision": "no-go",
+    "external_task_type": "external_heat_flux",
+    "inference_refused": true,
+    "model_task_type": "synthetic_source"
+  },
+  "generated_at_utc": "2026-07-26T20:56:00.167974+00:00",
+  "git_commit": "f18ff087cee7b1a569d91512aa3f8b1ec05f8c5f",
+  "git_dirty": true,
+  "limitations": [
+    "all numerical results are synthetic",
+    "synthetic OOD is not real-world OOD",
+    "no external generalization",
+    "source integrals are grid sums without validated physical units",
+    "MC dropout is predictive dispersion, not a Bayesian posterior",
+    "coverage is not uniform at nominal 90%",
+    "external E-TM-F/PR compatibility is no-go",
+    "checkpoints require human licensing review before redistribution"
+  ],
+  "models": {
+    "direct_sparse_mask": {
+      "architecture": {
+        "attention": true,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "direct",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 28,
+      "checkpoint_path": "research/ai/checkpoints/task4_default/direct_sparse_mask/best.pt",
+      "checkpoint_sha256": "b3eb88b6f388572fa254b9b2626a55de629420fe954b8595832194af0665d81b",
+      "cuda_build": "12.8",
+      "dataset_hashes": {
+        "configuration_hash": "b8078eff02f0f1ff7fd7913fa6660193c7de0fff39bcf2f28d517fc85eec1047",
+        "dataset_hdf5_hash": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+        "dataset_manifest_hash": "ce80f6c635db24af393c4c1f4c766e1255e5d171a748dc50e96c8329d6eea9ce",
+        "normalization_hash": "0531e918730dc9153d1d7bc47337cb88f4e921d1c5dbaac89a9bbb34ac42413a"
+      },
+      "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "epoch": 28,
+      "model_name": "direct_sparse_mask",
+      "nonnegative_policy": "softplus",
+      "parameter_count": 1913038,
+      "size_bytes": 23135133,
+      "torch_version": "2.11.0+cu128",
+      "train_count": 720,
+      "validation_selection_count": 80
+    },
+    "full_residual_attention": {
+      "architecture": {
+        "attention": true,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "residual",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 20,
+      "checkpoint_path": "research/ai/checkpoints/task4_default/full_residual_attention/best.pt",
+      "checkpoint_sha256": "b63c3e23bea84b16f64ab28e668b1587af7a183a3321d5f6f8a9e4365c19022b",
+      "cuda_build": "12.8",
+      "dataset_hashes": {
+        "configuration_hash": "b8078eff02f0f1ff7fd7913fa6660193c7de0fff39bcf2f28d517fc85eec1047",
+        "dataset_hdf5_hash": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+        "dataset_manifest_hash": "ce80f6c635db24af393c4c1f4c766e1255e5d171a748dc50e96c8329d6eea9ce",
+        "normalization_hash": "0531e918730dc9153d1d7bc47337cb88f4e921d1c5dbaac89a9bbb34ac42413a"
+      },
+      "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "epoch": 20,
+      "model_name": "full_residual_attention",
+      "nonnegative_policy": "softplus",
+      "parameter_count": 1913038,
+      "size_bytes": 23135133,
+      "torch_version": "2.11.0+cu128",
+      "train_count": 720,
+      "validation_selection_count": 80
+    },
+    "residual_no_attention": {
+      "architecture": {
+        "attention": false,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "residual",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 52,
+      "checkpoint_path": "research/ai/checkpoints/task4_default/residual_no_attention/best.pt",
+      "checkpoint_sha256": "b035f779443bef5e8c3ca8a302b772fd2e02b7b3626b0ab819a35607e5b74ed8",
+      "cuda_build": "12.8",
+      "dataset_hashes": {
+        "configuration_hash": "b8078eff02f0f1ff7fd7913fa6660193c7de0fff39bcf2f28d517fc85eec1047",
+        "dataset_hdf5_hash": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+        "dataset_manifest_hash": "ce80f6c635db24af393c4c1f4c766e1255e5d171a748dc50e96c8329d6eea9ce",
+        "normalization_hash": "0531e918730dc9153d1d7bc47337cb88f4e921d1c5dbaac89a9bbb34ac42413a"
+      },
+      "device_name": "NVIDIA GeForce RTX 5060 Laptop GPU",
+      "epoch": 52,
+      "model_name": "residual_no_attention",
+      "nonnegative_policy": "softplus",
+      "parameter_count": 1884417,
+      "size_bytes": 22740397,
+      "torch_version": "2.11.0+cu128",
+      "train_count": 720,
+      "validation_selection_count": 80
+    }
+  },
+  "package_version": "0.1.0",
+  "partitions": {
+    "dataset_total": 1200,
+    "partition_sha256": "4ecdf8abd706ed2aa60df7523c0075e3c9fc62d7f41660cf460a66c1c4435cbb",
+    "split_counts": {
+      "test_id": 120,
+      "test_ood_noise": 84,
+      "test_ood_sensor": 72,
+      "test_ood_shape": 84,
+      "train": 720,
+      "validation": 120
+    },
+    "test_role_counts": {
+      "test_id": 120,
+      "test_ood_noise": 84,
+      "test_ood_sensor": 72,
+      "test_ood_shape": 84
+    },
+    "test_total": 360,
+    "train_count": 720,
+    "validation_calibration_count": 40,
+    "validation_selection_count": 80
+  },
+  "phase5_scope": {
+    "optional_isolated_research": true,
+    "status": "complete",
+    "task5_ran_inference": false,
+    "task5_rebuilt_dataset": false,
+    "task5_retrained_models": false,
+    "tasks_completed": "5/5",
+    "uncommitted_files_published": false
+  },
+  "project": "ThermoReconLab",
+  "python": {
+    "implementation": "CPython",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "version": "3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]"
+  },
+  "schema_version": 1,
+  "uncertainty": {
+    "calibration_pixel_count": 36000,
+    "calibration_sample_count": 40,
+    "coverage_by_role": {
+      "test_id": {
+        "mean_per_sample_pixel_coverage": 0.8960925925925927,
+        "mean_per_sample_spearman": 0.8649523013673409,
+        "pixel_coverage": 0.8960925925925926,
+        "pooled_pixel_spearman": 0.9225827187932542,
+        "sample_count": 120
+      },
+      "test_ood_noise": {
+        "mean_per_sample_pixel_coverage": 0.8677645502645502,
+        "mean_per_sample_spearman": 0.8695465086811128,
+        "pixel_coverage": 0.8677645502645502,
+        "pooled_pixel_spearman": 0.9273404017746005,
+        "sample_count": 84
+      },
+      "test_ood_sensor": {
+        "mean_per_sample_pixel_coverage": 0.8824382716049383,
+        "mean_per_sample_spearman": 0.863113795679422,
+        "pixel_coverage": 0.8824382716049383,
+        "pooled_pixel_spearman": 0.9232738433442953,
+        "sample_count": 72
+      },
+      "test_ood_shape": {
+        "mean_per_sample_pixel_coverage": 0.9523015873015874,
+        "mean_per_sample_spearman": 0.9739993811140755,
+        "pixel_coverage": 0.9523015873015873,
+        "pooled_pixel_spearman": 0.97341230124117,
+        "sample_count": 84
+      }
+    },
+    "mean_per_sample_spearman": 0.8911009005438754,
+    "multiplier": 4.338155347102682,
+    "pooled_pixel_spearman": 0.9419756025815378,
+    "target_coverage": 0.9,
+    "test_sample_count": 360
+  },
+  "verification": {
+    "artifact_audit_passed": true,
+    "manifest_content_sha256": "0486294f1c5f44a1901f44988d72d82ce64e518c1db2979fcd4a998d3dc3e63a",
+    "numerical_reconciliation_passed": true,
+    "test_counts": {
+      "classical": 643,
+      "combined_research_with_task5": 221,
+      "research_task2_through_task4": 157,
+      "task4": 40,
+      "task5_finalization": 64
+    },
+    "timestamp_excluded_from_canonical_hash": true
+  }
+}

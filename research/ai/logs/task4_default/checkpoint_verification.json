@@ -1,0 +1,105 @@
+{
+  "checks": [
+    "dataset hashes",
+    "duplicate-free IDs",
+    "exact train IDs",
+    "exact validation-selection IDs",
+    "no calibration leakage",
+    "no test leakage",
+    "best epoch",
+    "architecture",
+    "nonnegative policy",
+    "training dataset path",
+    "shared model partitions"
+  ],
+  "dataset_hashes": {
+    "configuration_hash": "b8078eff02f0f1ff7fd7913fa6660193c7de0fff39bcf2f28d517fc85eec1047",
+    "dataset_hdf5_hash": "61a8987c11011b1eedceef76251d63fbf005aa1d22782a6cc0fc2c3ab9d67cc6",
+    "dataset_manifest_hash": "ce80f6c635db24af393c4c1f4c766e1255e5d171a748dc50e96c8329d6eea9ce",
+    "normalization_hash": "0531e918730dc9153d1d7bc47337cb88f4e921d1c5dbaac89a9bbb34ac42413a"
+  },
+  "models": {
+    "direct_sparse_mask": {
+      "architecture": {
+        "attention": true,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "direct",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 28,
+      "checkpoint": "research\\ai\\checkpoints\\task4_default\\direct_sparse_mask\\best.pt",
+      "epoch": 28,
+      "nonnegative_policy": "softplus",
+      "train_sample_count": 720,
+      "validation_selection_sample_count": 80,
+      "verified": true
+    },
+    "full_residual_attention": {
+      "architecture": {
+        "attention": true,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "residual",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 20,
+      "checkpoint": "research\\ai\\checkpoints\\task4_default\\full_residual_attention\\best.pt",
+      "epoch": 20,
+      "nonnegative_policy": "softplus",
+      "train_sample_count": 720,
+      "validation_selection_sample_count": 80,
+      "verified": true
+    },
+    "residual_no_attention": {
+      "architecture": {
+        "attention": false,
+        "base_channels": 32,
+        "depth": 3,
+        "dropout": 0.1,
+        "input_channel_mask": [
+          1,
+          1,
+          1,
+          1
+        ],
+        "input_channels": 4,
+        "output_channels": 1,
+        "prediction_mode": "residual",
+        "upsampling": "bilinear"
+      },
+      "best_epoch": 52,
+      "checkpoint": "research\\ai\\checkpoints\\task4_default\\residual_no_attention\\best.pt",
+      "epoch": 52,
+      "nonnegative_policy": "softplus",
+      "train_sample_count": 720,
+      "validation_selection_sample_count": 80,
+      "verified": true
+    }
+  },
+  "partition": {
+    "test_sample_count": 360,
+    "train_sample_count": 720,
+    "validation_calibration_sample_count": 40,
+    "validation_selection_sample_count": 80
+  },
+  "verified": true
+}
