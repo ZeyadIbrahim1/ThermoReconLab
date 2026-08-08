@@ -13,7 +13,9 @@ The only available external experiment is never split by frame. It is not traini
 
 ## Data and licensing policy
 
-Raw external data, generated outputs, training logs, and resume checkpoints remain outside Git. The professor-facing repository includes only the independently generated default synthetic dataset, its required metadata, three frozen `best.pt` checkpoints, and the small metadata needed to verify and evaluate them. External HDF5 files are referenced in place and were not copied into the synthetic dataset.
+Raw external data, generated outputs, disposable streaming training logs, and resume checkpoints remain outside Git. The professor-facing repository includes only the independently generated default synthetic dataset, its required metadata, three frozen `best.pt` checkpoints, and selected structured JSON reproducibility metadata under `logs/task4_default/`. The JSON files record partitions, checkpoint verification, and consolidated run provenance; they are intentionally committed and are not disposable training streams. Local `history.jsonl` files and `last.pt` resume checkpoints remain ignored. External HDF5 files are referenced in place and were not copied into the synthetic dataset.
+
+The historical `reproducibility_manifest.json` describes the complete local Phase 5 closure, including generated evaluation artifacts that can be reproduced from the frozen bundle but are not all distributed through Git. The executed final notebook retains the reviewed AI evidence. Its optional live AI section requires a compatible CUDA/PyTorch environment and the corresponding local evaluation summaries; without them, the notebook skips live inference while preserving its stored outputs.
 
 The ULRI vehicle-fire dataset is CC BY-NC 4.0. Confirm noncommercial scope, preserve attribution, and obtain human review before redistribution. HFITS is GPL-3.0 software and is scientific provenance only: no HFITS implementation code was copied, adapted, imported, or executed by this pipeline.
 

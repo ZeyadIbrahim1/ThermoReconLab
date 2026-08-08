@@ -1,186 +1,161 @@
 # ThermoReconLab
 
-ThermoReconLab reconstructs two-dimensional heat-source fields from sparse
-sensor measurements or supplied temperature fields. It combines a
-steady-state finite-difference forward model with regularized inverse
-reconstruction, diagnostics, visualization, and reproducible reporting.
+ThermoReconLab is a Python package for reconstructing hidden two-dimensional
+heat-source fields from sparse temperature measurements or complete temperature
+fields using regularized inverse methods. The deterministic classical inverse
+package is the main contribution; an optional synthetic AI research extension is
+kept separate. No real experimental validation or external AI generalization is
+claimed.
+
+## Scientific model and motivation
+
+The current forward model solves the steady-state heat equation
+
+\[
+-\Delta T = q,
+\]
+
+where \(T\) is the temperature field and \(q\) is the hidden effective
+heat-source field. The model uses homogeneous Dirichlet boundary conditions on
+a structured two-dimensional finite-difference grid.
+
+Heat conduction spreads source information through the temperature field.
+Recovering the source from a limited number of measurements reverses that
+smoothing process and is generally underdetermined or ill-posed, so the inverse
+problem requires regularization.
+
+```text
+hidden source q
+    ↓
+heat conduction
+    ↓
+temperature field T
+    ↓
+sparse or complete measurements
+    ↓
+regularized inverse reconstruction
+    ↓
+estimated source q
+```
+
+This controlled academic setting is relevant to questions in electronics
+cooling, battery thermal monitoring, and thermal anomaly or source localization,
+but the package has not been experimentally validated for those applications.
+
+## Key capabilities
+
+| Area | Supported capabilities |
+|---|---|
+| Inputs | Controlled synthetic benchmarks, sparse sensor CSV/measurements, complete 2-D temperature fields |
+| Classical methods | Identity Tikhonov, smoothness Tikhonov, smooth nonnegative, compact nonnegative |
+| Diagnostics and studies | Source metrics when truth exists, sensor-space residuals, rank/nullity diagnostics, alpha sensitivity, noise robustness, sensor count, sensor layout and position |
+| Outputs | CSV, JSON, Markdown, PNG figures, NumPy arrays |
+| Optional AI | Residual attention U-Net research using sparse measurements and classical reconstructions |
+
+Additional data utilities support CSV, TXT, NPY, and NPZ arrays. Sensor layouts
+include regular, random, center-focused, and custom configurations.
 
 ## Reviewer quick start
 
-1. Open `notebooks/demo_presentation_final.ipynb`. The executed notebook
-   demonstrates all three input modes, successful and difficult synthetic
-   cases, method comparison, sensor studies, sparse CSV input, complete-field
-   input, reporting, and optional synthetic AI inference.
-2. Run the complete classical demonstration:
-
-   ```powershell
-   & ".\.venv\Scripts\python.exe" examples/04_final_demo.py
-   ```
-
-3. Run the classical test suite:
-
-   ```powershell
-   & ".\.venv\Scripts\python.exe" -m pytest -q
-   ```
-
-   A previously verified closure had 643 passing tests; this is a historical
-   result, not a permanently fixed count.
-4. Review `research/ai/README.md`, `research/ai/final_report.md`,
-   `research/ai/model_card.md`, `research/ai/FINAL_STATUS.md`, and
-   `research/ai/reproducibility_manifest.json`.
-5. For optional AI inference and verification, install the separate
-   dependencies from `research/ai/requirements-ml.txt`. PyTorch is not a main
-   package dependency.
-6. Run the optional AI tests:
-
-   ```powershell
-   & ".\.venv\Scripts\python.exe" -m pytest `
-     research/ai/tests/test_ai_data.py `
-     research/ai/tests/test_ai_model.py `
-     research/ai/tests/test_ai_evaluation.py `
-     research/ai/tests/test_ai_finalize.py -q
-   ```
-
-   A previously verified closure had 228 passing tests; this too is a
-   historical result rather than a fixed requirement.
-7. The repository includes a minimal frozen AI evaluation bundle: an
-   independently generated ThermoReconLab synthetic dataset and required
-   metadata, three best checkpoints and their required verification metadata.
-   It contains no resume (`last.pt`) checkpoints and no raw external data.
-
-Project map:
-
-```text
-src/thermoreconlab/
-tests/
-examples/
-research/ai/
-notebooks/demo_presentation_final.ipynb
-```
-
-The classical package is the main contribution. The optional AI extension is
-synthetic-only: it predicts a source correction from sparse temperatures, a
-sensor mask, and identity and smoothness reconstructions. It has no PDE-based
-physics loss; the forward solver checks consistency after prediction. It has
-no external validation and is not production-ready.
-
-## Motivation
-
-Heat sources may be difficult to observe directly in applications such as
-electronics cooling, battery temperature monitoring, thermal anomaly
-detection, and heat-source localization. Temperature sensors measure the
-effect of a source rather than the source itself, and practical systems often
-provide only a limited number of measurements. ThermoReconLab provides a
-controlled academic environment for studying how source location and
-intensity estimates depend on the measurements and modelling assumptions. It
-does not claim industrial or real experimental validation.
-
-## Main capabilities
-
-- Synthetic heat-source and temperature generation for benchmarking.
-- Regular, random, center-focused, and custom sparse sensor layouts.
-- Reproducible relative Gaussian measurement noise.
-- Identity and first-difference smoothness Tikhonov regularization.
-- CSV ingestion for external sensor measurements.
-- Reconstruction from user-provided sparse measurements.
-- Reconstruction from complete temperature fields or selected interior nodes.
-- Regularization, sensor-count, noise, and sensor-layout studies.
-- Source-error metrics for synthetic truth and measurement-space residuals for
-  every reconstruction mode.
-- Observation-matrix rank, nullity, conditioning, and underdetermination
-  diagnostics.
-- CSV, JSON, Markdown, and Matplotlib reporting exports.
-- CSV, TXT, NPY, and NPZ array input and output through the data API.
+1. Open the fully executed
+   [final notebook](notebooks/demo_presentation_final.ipynb). It covers the
+   problem formulation, a recoverable synthetic case, a difficult sparse case,
+   method and alpha comparisons, sensor count/layout/position studies, sparse
+   CSV input, complete-field input, reporting, and optional synthetic AI
+   evidence.
+2. Run the complete classical demonstration in
+   [examples/04_final_demo.py](examples/04_final_demo.py).
+3. For the optional AI scope and evidence, read the
+   [research README](research/ai/README.md),
+   [final report](research/ai/final_report.md),
+   [model card](research/ai/model_card.md), and
+   [final status](research/ai/FINAL_STATUS.md).
 
 ## Installation
 
-ThermoReconLab requires Python 3.10 or newer. Install the package and its
-runtime dependencies from the repository root:
+ThermoReconLab requires Python 3.10 or newer. `pyproject.toml` is the canonical
+package, build, and dependency definition.
 
-```bash
-python -m pip install -e .
-```
+Windows PowerShell:
 
-The existing `dev` extra includes the project's test and development tools:
-
-```bash
+```powershell
+git clone https://github.com/ZeyadIbrahim1/ThermoReconLab.git
+cd ThermoReconLab
+py -3.10 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -e ".[dev]"
 ```
 
-## Quick start
+Linux/macOS:
 
-The high-level synthetic workflow generates known truth, samples noisy
-measurements, reconstructs the source, and calculates validation metrics:
+```bash
+git clone https://github.com/ZeyadIbrahim1/ThermoReconLab.git
+cd ThermoReconLab
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+For a runtime-only installation, `requirements.txt` is a convenience mirror of
+the four classical runtime dependencies declared in `pyproject.toml`:
+
+```bash
+python -m pip install -r requirements.txt
+python -m pip install -e . --no-deps
+```
+
+The `dev` extra adds pytest, Jupyter, and documentation tools. Optional AI
+dependencies remain separate:
+
+```bash
+python -m pip install -r research/ai/requirements-ml.txt
+```
+
+That file freezes the project's CUDA 12.8 / PyTorch environment; it is not a
+universal CPU or macOS AI installation. Users without a compatible environment
+can use the complete classical package and inspect the stored executed AI
+evidence in the final notebook.
+
+## Minimal package usage
+
+### Synthetic benchmark
 
 ```python
-from pathlib import Path
-
 from thermoreconlab import run_synthetic_benchmark
 from thermoreconlab.reporting import export_results
 
 result = run_synthetic_benchmark(
     grid_shape=(20, 20),
-    source_type="two_gaussians",
-    sensor_strategy="regular",
     num_sensors=16,
-    noise_level=0.02,
     alpha=1e-7,
-    regularization="identity",
     seed=42,
 )
-
-export_results(result, Path("outputs") / "synthetic_benchmark")
+export_results(result, "outputs/synthetic_benchmark")
 ```
 
-Source-error metrics in this mode compare the reconstruction with known
-synthetic truth on interior source nodes.
+Synthetic mode generates known truth, solves the forward problem, samples
+measurements, reconstructs the source, and reports source-error metrics.
 
-## External sensor-data workflow
+### Sparse sensor CSV
 
-`load_sensor_csv` expects the columns `i`, `j`, and `value`. Optional `x` and
-`y` columns may record physical coordinates. The demonstration file uses this
-form:
-
-```csv
-i,j,value,x,y
-1,1,0.0001483199849599157,0.05263157894736842,0.05263157894736842
-1,7,0.0008665520889166847,0.05263157894736842,0.3684210526315789
-```
-
-The integer indices must be valid for the requested grid shape. The default
-physical domain is the unit square, and the forward model uses homogeneous
-Dirichlet boundary conditions.
+`load_sensor_csv` expects `i`, `j`, and `value` columns; optional `x` and `y`
+columns may store physical coordinates.
 
 ```python
-from pathlib import Path
-
 from thermoreconlab import reconstruct_from_measurements
 from thermoreconlab.data import load_sensor_csv
-from thermoreconlab.reporting import export_results
 
-sensor_data = load_sensor_csv(
-    Path("examples/data/demo_sensor_measurements.csv")
-)
+sensors = load_sensor_csv("examples/data/demo_sensor_measurements.csv")
 result = reconstruct_from_measurements(
-    sensor_data,
+    sensors,
     grid_shape=(20, 20),
     alpha=1e-7,
-    regularization="identity",
 )
-export_results(result, Path("outputs") / "user_measurements")
 ```
 
-Ground-truth source metrics are unavailable for this workflow.
-
-Only measurement-space residuals can be reported without an independently
-known source.
-
-## Full temperature-field workflow
-
-`reconstruct_from_temperature_field` accepts a two-dimensional temperature
-array. By default, every interior temperature node becomes a measurement; an
-ordered interior subset can instead be supplied through `sensor_indices`.
-This differs from loading an already sparse sensor CSV.
+### Complete temperature field
 
 ```python
 from thermoreconlab import reconstruct_from_temperature_field
@@ -190,43 +165,70 @@ temperature = load_array("temperature.npy")
 result = reconstruct_from_temperature_field(
     temperature,
     alpha=1e-7,
-    regularization="identity",
 )
 ```
 
-The returned measurement result retains the selected measurements and the
-reconstructed source, but not the original complete temperature array.
-Standard reporting therefore does not invent a full temperature-field plot or
-truth-based source errors for this mode.
+By default every interior temperature node becomes a measurement. An ordered
+interior subset can instead be supplied with `sensor_indices`.
 
-## Regularization and parameter studies
+## Classical reconstruction methods
 
-The high-level workflows support:
+| Method | Prior or constraint | Intended role |
+|---|---|---|
+| Identity Tikhonov | Magnitude penalty | Fast baseline |
+| Smoothness Tikhonov | Neighboring-difference prior | Spatial coherence |
+| Smooth nonnegative | Smoothness with \(q \ge 0\) | Targeted successful showcase method |
+| Compact nonnegative | Smoothness, nonnegativity, and compactness/sparsity | Compact isolated-source assumptions |
 
-- `regularization="identity"` for an identity penalty;
-- `regularization="smoothness"` for an unconstrained first-difference
-  smoothness penalty.
+No method is universally best. Alpha values are configuration-dependent, and
+the identity and smoothness penalty operators have different numerical scales.
+Nonnegative and compact methods add modeling assumptions; they do not prove
+physical correctness or unique recoverability.
 
-These penalty operators have different numerical scales, so their alpha
-values are not directly comparable. Regularization can reduce recovered
-amplitudes, and an alpha value is meaningful only for its source, grid,
-measurement geometry, noise, and penalty configuration.
+## Demonstrated evidence
 
-Synthetic studies can compare tested alpha values because the true source is
-known. A selected value should be described as the **best tested alpha for
-this configuration**, not as universally optimal or as automatic package
-tuning. `examples/03_parameter_studies.py` demonstrates regularization,
-sensor-count, repeated-noise, sensor-layout, method-comparison, and
-observation-matrix studies using package APIs.
+The following values belong to controlled synthetic configurations in the
+executed notebook, not to real experimental validation.
 
-The standard identity and smoothness benchmark workflows are unconstrained,
-so negative reconstruction artifacts can occur. Separate nonnegative smooth
-and compact reconstruction functions are available, but they do not establish
-unique recoverability or uncertainty bounds.
+### Recoverable targeted case
+
+On a 20 × 20 grid with 324 interior source unknowns, 64 center-focused sensors,
+2% noise, and smooth nonnegative reconstruction at \(\alpha=10^{-9}\), the
+median relative source error was 18.54% and the median peak-location distance
+was one grid cell. Under this controlled synthetic configuration, the method
+localized the hidden source reasonably well; it did not recover it exactly.
+
+### Difficult sparse case
+
+With 324 source unknowns and only 16 measurements, the observation matrix had
+rank 16 and nullity 308. The relative sensor residual was 0.52%, while relative
+source error was 53.0%. This illustrates information insufficiency and
+non-uniqueness: **a low sensor-space residual does not guarantee accurate source
+recovery.**
+
+### Method comparison
+
+For the targeted controlled showcase:
+
+| Method | Relative source error | Runtime |
+|---|---:|---:|
+| Identity Tikhonov | 66.48% | 8.8 ms |
+| Smoothness Tikhonov | 36.27% | 24.3 ms |
+| Smooth nonnegative | 18.54% | 83.2 ms |
+| Compact nonnegative | 18.55% | 320.8 ms |
+
+These values compare assumptions for one benchmark; they are not universal
+rankings. Across the tested sensor studies, more measurements generally reduced
+median error, increasing noise degraded recovery, and geometry mattered.
+Center-focused sensing was strong near its favored region but fragile for
+off-center sources; regular coverage gave the best tested worst-case balance
+when source position was unknown.
 
 ## Reporting outputs
 
-`export_results(result, output_dir, dpi=300)` creates:
+`thermoreconlab.reporting.export_results` can create configuration/summary JSON,
+metrics CSV, figures, and a Markdown report. Scientific fields can also be saved
+as NumPy arrays where applicable.
 
 ```text
 output_dir/
@@ -236,126 +238,159 @@ output_dir/
 └── figures/
 ```
 
-For a synthetic `ExperimentResult`, the figures directory contains:
+Synthetic runs have known source truth and therefore include source-error
+metrics and truth-based figures. For external or otherwise unknown user data,
+source truth is generally unavailable: the package reports measurement-space
+diagnostics and does not invent source-error metrics.
 
-- `true_source.png`
-- `temperature.png`
-- `sensor_measurements.png`
-- `reconstructed_source.png`
-- `error_map.png`
-- `reconstruction_comparison.png`
+## Official examples and final notebook
 
-The tables and report distinguish source-error metrics from measurement-space
-residuals and include observation-matrix diagnostics.
+- [01_synthetic_benchmark.py](examples/01_synthetic_benchmark.py) runs and
+  exports a reproducible synthetic benchmark.
+- [02_user_sensor_data.py](examples/02_user_sensor_data.py) demonstrates sparse
+  sensor CSV ingestion and measurement-only reporting.
+- [03_parameter_studies.py](examples/03_parameter_studies.py) runs alpha,
+  sensor-count, repeated-noise, layout, method, and observation studies.
+- [04_final_demo.py](examples/04_final_demo.py) presents recoverable, sparse
+  stress, and user-measurement cases end to end.
 
-For external-measurement and temperature-field results, standard figures are
-limited to:
+The [final executed notebook](notebooks/demo_presentation_final.ipynb) is the
+main scientific walkthrough. All 21 code cells are executed, embedded outputs
+are retained, and no error outputs are present. Generated output directories
+are intentionally ignored rather than tracked.
 
-- `sensor_measurements.png`
-- `reconstructed_source.png`
+## Optional AI research extension
 
-These modes contain measurement-space diagnostics but no truth-based metrics
-or figures. Scientific fields can separately be saved as NumPy arrays with
-`save_array`; the final demonstration shows this explicit workflow. Runtime
-fields may vary between otherwise deterministic exports.
+The AI component is an optional research extension. The classical package
+remains the main ThermoReconLab contribution.
 
-## Official examples
+The frozen AI dataset contains 1,200 independently generated ThermoReconLab
+samples. The primary residual attention U-Net receives four inputs:
 
-- `examples/01_synthetic_benchmark.py` runs and exports one synthetic
-  benchmark.
-- `examples/02_user_sensor_data.py` demonstrates CSV sensor-data ingestion and
-  user-mode reporting.
-- `examples/03_parameter_studies.py` runs deterministic parameter studies and
-  observation diagnostics.
-- `examples/04_final_demo.py` presents recoverable synthetic, sparse stress,
-  and external-measurement cases end to end.
+1. sparse temperature;
+2. sensor mask;
+3. identity reconstruction;
+4. smoothness reconstruction.
 
-Run an example from the repository root after installation, for example:
+Its primary residual formulation is
+
+\[
+q_{\mathrm{AI}} = q_{\mathrm{smoothness}} + \text{learned correction}.
+\]
+
+Training uses supervised source MSE, source L1, and spatial-gradient losses.
+There is no PDE-based physics loss; physics consistency is evaluated post-hoc
+through the classical forward model. Evaluation uses Test-ID and controlled
+synthetic OOD roles. The AI workflow is not externally validated, makes no
+external generalization claim, and is not production-ready.
+
+On the controlled synthetic Test-ID benchmark, the learned model achieved
+approximately 60% lower mean source error than the stored identity and
+unconstrained-smoothness baselines. This comparison does not establish
+superiority over the recommended smooth-nonnegative classical showcase method.
+
+The ULRI vehicle-fire E-TM-F/PR dataset was audited as an external candidate. It
+contains plate-temperature and radiative heat-flux-related fields, but its
+transient heat-flux-related target was not shown to be physically equivalent to
+ThermoReconLab's steady-state internal source \(q\). It was not used for training
+or validation, and no raw ULRI arrays are committed.
+
+Despite its directory name,
+`data_external/phase5_dataset_default/synthetic_dataset.h5` is independently
+generated ThermoReconLab synthetic data. The committed frozen bundle contains
+that dataset and metadata plus three `best.pt` checkpoints:
+
+- `full_residual_attention/best.pt`;
+- `residual_no_attention/best.pt`;
+- `direct_sparse_mask/best.pt`.
+
+They support frozen inference/evaluation without retraining. Resume `last.pt`
+files, raw external arrays, and disposable streaming logs are excluded.
+Selected JSON files under `research/ai/logs/task4_default/` are intentionally
+committed structured reproducibility metadata.
+
+See the [research README](research/ai/README.md),
+[final scientific report](research/ai/final_report.md), and
+[model card](research/ai/model_card.md) for exact scope and results. The
+historical `reproducibility_manifest.json` records the complete local Phase 5
+closure, including generated evaluation artifacts not all distributed through
+Git; the professor-facing repository retains the frozen dataset, checkpoints,
+selected metadata, and executed evidence.
+
+## Testing and reproducibility
+
+From the repository root, run the classical suite:
 
 ```bash
-python examples/04_final_demo.py
+python -m pytest -q
 ```
+
+Run the optional AI research suite separately in its compatible environment:
+
+```bash
+python -m pytest -q \
+  research/ai/tests/test_ai_data.py \
+  research/ai/tests/test_ai_model.py \
+  research/ai/tests/test_ai_evaluation.py \
+  research/ai/tests/test_ai_finalize.py
+```
+
+At the audited v0.1.0 submission revision, 643 classical tests and 229 optional
+AI research tests passed. Counts describe this revision and may evolve with the
+test suite.
+
+Synthetic generation and studies use explicit seeds. The final notebook stores
+its reviewed outputs, generated report trees remain ignored, and the optional AI
+bundle preserves the dataset/configuration/normalization hashes, fixed best
+checkpoints, partitions, and verification metadata. PyTorch is not imported by
+the classical package or included in the built wheel.
+
+## Repository structure
+
+```text
+ThermoReconLab/
+├── src/thermoreconlab/        # classical package
+├── tests/                     # classical tests
+├── examples/                  # official user examples
+├── notebooks/
+│   └── demo_presentation_final.ipynb
+├── research/ai/               # optional synthetic AI research
+├── data_external/             # frozen synthetic AI bundle and metadata
+├── requirements.txt           # classical runtime convenience mirror
+├── pyproject.toml             # canonical package/build metadata
+├── README.md
+└── LICENSE
+```
+
+The committed HDF5 under `data_external/phase5_dataset_default/` is synthetic
+ThermoReconLab data. Raw external ULRI arrays are not distributed.
 
 ## Scientific assumptions and limitations
 
-- The model is the two-dimensional steady-state heat equation on a structured
-  finite-difference grid.
-- Homogeneous Dirichlet boundary conditions are assumed.
-- Sparse inverse reconstruction is generally underdetermined and does not
-  imply unique source recoverability.
-- Results depend on sensor or measurement geometry, the regularization method,
-  and the configuration-specific alpha value.
-- Regularization may reduce reconstructed source amplitudes.
-- Unconstrained reconstructions may contain negative source artifacts.
-- Residuals are measured in sensor space; a low residual does not guarantee a
-  low source error.
-- Synthetic data provides validation and benchmarking, not real experimental
-  validation.
-- The classical package does not provide uncertainty quantification. The
-  optional AI research workflow evaluates MC-dropout predictive dispersion,
-  not a Bayesian posterior or a production uncertainty guarantee.
-- Available nonnegative solvers impose a constraint but do not prove physical
-  correctness or uniqueness.
+- The model is two-dimensional and steady-state with homogeneous Dirichlet
+  boundaries; source unknowns are defined on interior nodes.
+- Sparse inversion can be severely underdetermined. Grid refinement creates
+  more unknowns, not new measurement information.
+- Sensor geometry affects identifiability, and regularization assumptions affect
+  the estimate.
+- Alpha is configuration-dependent; smoothness can blur peaks.
+- Nonnegativity is a modeling prior, not proof of physical correctness.
+- Compactness helps only when a compact or sparse-source assumption is suitable.
+- A low sensor residual does not imply low source error.
+- Unknown external data has no source-truth metrics.
+- Synthetic validation is not real experimental validation.
+- The AI workflow is synthetic-only and has no external generalization claim.
+- MC dropout measures predictive dispersion, not a Bayesian posterior or a
+  production uncertainty guarantee.
+- Neither the classical nor AI workflow is claimed to be production-ready.
 
-## Testing
-
-The root pytest configuration intentionally runs the classical package tests
-under `tests/`. Run that suite from the repository root with:
-
-```powershell
-& ".\.venv\Scripts\python.exe" -m pytest -q
-```
-
-A previously verified closure had 643 classical tests passing; this is a
-historical reference rather than a fixed requirement as the suite may grow.
-
-The optional AI research suite requires the dependencies listed in
-`research/ai/requirements-ml.txt` and is run separately:
-
-```powershell
-& ".\.venv\Scripts\python.exe" -m pytest `
-  research/ai/tests/test_ai_data.py `
-  research/ai/tests/test_ai_model.py `
-  research/ai/tests/test_ai_evaluation.py `
-  research/ai/tests/test_ai_finalize.py -q
-```
-
-A previously verified combined AI research closure had 228 tests passing;
-this too is historical rather than a permanent expected count.
-
-## Optional Phase 5 AI research
-
-The deterministic classical package remains the main validated product. An
-optional, isolated PyTorch research extension is trained and evaluated on
-synthetic ThermoReconLab data. It uses sparse temperatures, a sensor mask, and
-classical reconstructions to predict either a source field or a correction to
-a classical reconstruction. The complete workflow may therefore be described
-as hybrid.
-
-Physics consistency is evaluated after prediction using the classical forward
-model. The current neural-network training objective does not contain a
-PDE-based physics loss. The AI workflow is not externally validated and is not
-production-ready.
-
-The workflow is documented in [research/ai/README.md](research/ai/README.md),
-with its synthetic-only findings in the [final scientific report](research/ai/final_report.md)
-and usage boundaries in the [model card](research/ai/model_card.md). PyTorch is
-not a normal package dependency, and no research module is imported by
-`thermoreconlab`. Research datasets and checkpoints are not distributed in the
-installed Python package or wheel; the repository contains only the minimal
-frozen synthetic evaluation bundle described above. The E-TM-F/PR external
-dataset was audited but not used for training or validation: its target is
-transient heat-flux-related, whereas ThermoReconLab predicts a steady-state
-internal source `q`, and physical target equivalence was not established. The
-committed HDF5 dataset is independently generated ThermoReconLab synthetic
-data. The compatibility decision remains no-go.
-
-## Project status
+## Project status and version
 
 ThermoReconLab is academic/research software. Version `0.1.0` focuses on
-deterministic finite-difference inverse reconstruction, controlled synthetic
-evaluation, external measurement workflows, diagnostics, and reporting.
+deterministic finite-difference reconstruction, controlled synthetic evidence,
+external measurement workflows, diagnostics, reporting, and an isolated
+optional AI research extension.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+ThermoReconLab is licensed under the [MIT License](LICENSE).

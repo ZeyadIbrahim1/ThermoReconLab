@@ -33,8 +33,7 @@ notebooks/*.ipynb
 Thumbs.db
 
 # Generated project outputs
-outputs/*
-!outputs/.gitkeep
+outputs/
 
 # Optional Phase 5 research data and generated artifacts
 data_external/

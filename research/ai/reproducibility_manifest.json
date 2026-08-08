@@ -5,8 +5,8 @@
       "generated_by_phase": 5,
       "path": "README.md",
       "required": true,
-      "sha256": "a05eee9dc0e1b494c793e8e4f7ba0c11d4e2ea15de6c487be9a9fa520c156b34",
-      "size_bytes": 13556
+      "sha256": "698718f2af486a61c98487fed7c4855f954dba9d570c025b4987341212834ee0",
+      "size_bytes": 15142
     },
     {
       "artifact_role": "external_metadata_only",
@@ -101,16 +101,16 @@
       "generated_by_phase": 5,
       "path": "research/ai/FINAL_STATUS.md",
       "required": true,
-      "sha256": "d743e8b638639009afc3867a6c71bafeb0c0af6d20089a97c31184a6427d2467",
-      "size_bytes": 1149
+      "sha256": "89a3b0d7d236350bdcbdab64a54a695dd49227632513fd377977d4323caf700b",
+      "size_bytes": 1381
     },
     {
       "artifact_role": "phase5_source_configuration_test_or_documentation",
       "generated_by_phase": 5,
       "path": "research/ai/README.md",
       "required": true,
-      "sha256": "39041e33dc1be55ccaa3833dce579248199c5d905993ebf5f008432694de017a",
-      "size_bytes": 14734
+      "sha256": "0e384f71e73ef8d365f998a9288d4884b952dd4187cd21c2a4a167603d92a98e",
+      "size_bytes": 15517
     },
     {
       "artifact_role": "phase5_source_configuration_test_or_documentation",
@@ -253,8 +253,8 @@
       "generated_by_phase": 4,
       "path": "research/ai/logs/task4_default/training_runs.json",
       "required": true,
-      "sha256": "5a97609717075a976c15fdc8c81133ff1e5493e097578c66215dc7c3868d2b98",
-      "size_bytes": 107647
+      "sha256": "ac086c0bdf6a9116bc85c09941ccf147f4142496bc75e3be81698479f76d4950",
+      "size_bytes": 107482
     },
     {
       "artifact_role": "task4_evaluation_log",
@@ -301,8 +301,8 @@
       "generated_by_phase": 4,
       "path": "research/ai/outputs/evaluation_default/evaluation_summary.json",
       "required": true,
-      "sha256": "b9923251aa915f868053e1fefe92194f94de09f4d69dec8c5f4adbc5d032d8d7",
-      "size_bytes": 339448
+      "sha256": "ad7349f8dbaf9abb7080e780f4e621e45687704d60b436bde301f5da5bb2eb38",
+      "size_bytes": 339244
     },
     {
       "artifact_role": "task4_machine_readable_result",
@@ -926,7 +926,7 @@
   },
   "verification": {
     "artifact_audit_passed": true,
-    "manifest_content_sha256": "0486294f1c5f44a1901f44988d72d82ce64e518c1db2979fcd4a998d3dc3e63a",
+    "manifest_content_sha256": "06a2cdb6df730b796145a935be88923ebedcd19e1571342a4115fc5325c9f50e",
     "numerical_reconciliation_passed": true,
     "test_counts": {
       "classical": 643,
