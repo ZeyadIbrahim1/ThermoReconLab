@@ -76,6 +76,8 @@ include regular, random, center-focused, and custom configurations.
 ThermoReconLab requires Python 3.10 or newer. `pyproject.toml` is the canonical
 package, build, and dependency definition.
 
+### Normal package installation
+
 Windows PowerShell:
 
 ```powershell
@@ -84,7 +86,8 @@ cd ThermoReconLab
 py -3.10 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python -m pip install .
+python -c "import thermoreconlab; print(thermoreconlab.__version__)"
 ```
 
 Linux/macOS:
@@ -95,19 +98,35 @@ cd ThermoReconLab
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
+python -m pip install .
+python -c "import thermoreconlab; print(thermoreconlab.__version__)"
+```
+
+### Development installation
+
+For an editable installation with the test, notebook, and documentation tools:
+
+```bash
 python -m pip install -e ".[dev]"
 ```
 
-For a runtime-only installation, `requirements.txt` is a convenience mirror of
-the four classical runtime dependencies declared in `pyproject.toml`:
+### Runtime-dependency convenience file
+
+Installing `requirements.txt` installs the classical runtime dependencies.
+Installing the project itself (`pip install .` or `pip install -e .`) installs
+ThermoReconLab. The requirements file mirrors the four direct runtime
+dependencies declared in `pyproject.toml`, so a normal package installation can
+be tested without resolving them again:
 
 ```bash
 python -m pip install -r requirements.txt
-python -m pip install -e . --no-deps
+python -m pip install . --no-deps
+python -c "import thermoreconlab; print(thermoreconlab.__version__)"
 ```
 
-The `dev` extra adds pytest, Jupyter, and documentation tools. Optional AI
-dependencies remain separate:
+### Optional AI installation
+
+Optional AI dependencies remain separate from the classical package:
 
 ```bash
 python -m pip install -r research/ai/requirements-ml.txt
@@ -314,8 +333,8 @@ See the [research README](research/ai/README.md),
 [model card](research/ai/model_card.md) for exact scope and results. The
 historical `reproducibility_manifest.json` records the complete local Phase 5
 closure, including generated evaluation artifacts not all distributed through
-Git; the professor-facing repository retains the frozen dataset, checkpoints,
-selected metadata, and executed evidence.
+Git; the academic repository retains the frozen dataset, checkpoints, selected
+metadata, and executed evidence.
 
 ## Testing and reproducibility
 
@@ -335,7 +354,7 @@ python -m pytest -q \
   research/ai/tests/test_ai_finalize.py
 ```
 
-At the audited v0.1.0 submission revision, 643 classical tests and 229 optional
+At the audited v0.1.0 revision, 643 classical tests and 229 optional
 AI research tests passed. Counts describe this revision and may evolve with the
 test suite.
 

@@ -97,7 +97,7 @@ The reproducibility manifest records portable paths, hashes, partitions, checkpo
 
 ## 20. Artifact inventory
 
-The frozen inventory covers dataset metadata and HDF5 hash, partition and test manifests, checkpoint verification and best checkpoints, every Task 4 JSON/CSV/figure, Phase 5 source/configuration files, and final tracked reports. The professor-facing repository includes the minimal synthetic dataset and `best.pt` evaluation bundle; generated outputs, training logs, resume checkpoints, and raw external data remain outside Git.
+The frozen inventory covers dataset metadata and HDF5 hash, partition and test manifests, checkpoint verification and best checkpoints, every Task 4 JSON/CSV/figure, Phase 5 source/configuration files, and final tracked reports. The academic repository includes the minimal synthetic dataset and `best.pt` evaluation bundle; generated outputs, training logs, resume checkpoints, and raw external data remain outside Git.
 
 ## 21. Final conclusion
 
