@@ -3,8 +3,8 @@
 ThermoReconLab is a Python package for reconstructing hidden two-dimensional
 heat-source fields from sparse temperature measurements or complete temperature
 fields using regularized inverse methods. The deterministic classical inverse
-package is the main contribution; an optional synthetic AI research extension is
-kept separate. No real experimental validation or external AI generalization is
+package is the main contribution; an optional synthetic ML research extension is
+kept separate. No real experimental validation or external ML generalization is
 claimed.
 
 ## Scientific model and motivation
@@ -50,10 +50,34 @@ but the package has not been experimentally validated for those applications.
 | Classical methods | Identity Tikhonov, smoothness Tikhonov, smooth nonnegative, compact nonnegative |
 | Diagnostics and studies | Source metrics when truth exists, sensor-space residuals, rank/nullity diagnostics, alpha sensitivity, noise robustness, sensor count, sensor layout and position |
 | Outputs | CSV, JSON, Markdown, PNG figures, NumPy arrays |
-| Optional AI | Residual attention U-Net research using sparse measurements and classical reconstructions |
+| Optional ML | Residual attention U-Net deep-learning research using sparse measurements and classical reconstructions |
 
 Additional data utilities support CSV, TXT, NPY, and NPZ arrays. Sensor layouts
 include regular, random, center-focused, and custom configurations.
+
+## Architecture and workflows
+
+The user workflow shows how the public API depends on the available input data.
+The technical architecture shows how configuration, physics, sensor data,
+reconstruction, analysis, and reporting exchange objects.
+
+### User workflow
+
+![ThermoReconLab user workflow](docs/images/flowcharts/02_user_workflow.png)
+
+Synthetic-truth workflows can report source-truth metrics. Sparse sensor CSV
+workflows reconstruct from measurements, while complete 2-D temperature-field
+workflows derive the source from the full field; source-truth metrics exist only
+when the truth is known.
+
+### Technical architecture
+
+![ThermoReconLab technical architecture](docs/images/flowcharts/01_technical_architecture.png)
+
+The main object flow is `Domain2D` → `Grid2D` → source/temperature data →
+`SensorData` → reconstruction → `ReconstructionResult` → analysis and
+reporting. The optional learned branch builds on classical outputs rather than
+replacing the classical package.
 
 ## Reviewer quick start
 
@@ -61,11 +85,11 @@ include regular, random, center-focused, and custom configurations.
    [final notebook](notebooks/demo_presentation_final.ipynb). It covers the
    problem formulation, a recoverable synthetic case, a difficult sparse case,
    method and alpha comparisons, sensor count/layout/position studies, sparse
-   CSV input, complete-field input, reporting, and optional synthetic AI
+   CSV input, complete-field input, reporting, and optional synthetic ML
    evidence.
 2. Run the complete classical demonstration in
    [examples/04_final_demo.py](examples/04_final_demo.py).
-3. For the optional AI scope and evidence, read the
+3. For the optional ML scope and evidence, read the
    [research README](research/ai/README.md),
    [final report](research/ai/final_report.md),
    [model card](research/ai/model_card.md), and
@@ -124,17 +148,17 @@ python -m pip install . --no-deps
 python -c "import thermoreconlab; print(thermoreconlab.__version__)"
 ```
 
-### Optional AI installation
+### Optional ML installation
 
-Optional AI dependencies remain separate from the classical package:
+Optional ML dependencies remain separate from the classical package:
 
 ```bash
 python -m pip install -r research/ai/requirements-ml.txt
 ```
 
 That file freezes the project's CUDA 12.8 / PyTorch environment; it is not a
-universal CPU or macOS AI installation. Users without a compatible environment
-can use the complete classical package and inspect the stored executed AI
+universal CPU or macOS ML installation. Users without a compatible environment
+can use the complete classical package and inspect the stored executed ML
 evidence in the final notebook.
 
 ## Minimal package usage
@@ -278,12 +302,13 @@ main scientific walkthrough. All 21 code cells are executed, embedded outputs
 are retained, and no error outputs are present. Generated output directories
 are intentionally ignored rather than tracked.
 
-## Optional AI research extension
+## Optional ML research extension
 
-The AI component is an optional research extension. The classical package
-remains the main ThermoReconLab contribution.
+The supervised machine-learning/deep-learning component is an optional research
+extension. The classical package remains the main ThermoReconLab contribution;
+the existing `research/ai/` directory name is retained for release compatibility.
 
-The frozen AI dataset contains 1,200 independently generated ThermoReconLab
+The frozen ML dataset contains 1,200 independently generated ThermoReconLab
 samples. The primary residual attention U-Net receives four inputs:
 
 1. sparse temperature;
@@ -300,8 +325,17 @@ q_{\mathrm{AI}} = q_{\mathrm{smoothness}} + \text{learned correction}.
 Training uses supervised source MSE, source L1, and spatial-gradient losses.
 There is no PDE-based physics loss; physics consistency is evaluated post-hoc
 through the classical forward model. Evaluation uses Test-ID and controlled
-synthetic OOD roles. The AI workflow is not externally validated, makes no
+synthetic OOD roles. The ML workflow is not externally validated, makes no
 external generalization claim, and is not production-ready.
+
+The research workflow below shows the external-data compatibility audit,
+independent synthetic generation, four-channel ML input, residual U-Net
+reconstruction, and synthetic-only evaluation.
+
+![ThermoReconLab optional ML research workflow](docs/images/flowcharts/03_ml_research_outlook.png)
+
+This workflow remains synthetic-only: it has no real-world or external
+validation and supports no external generalization claim.
 
 On the controlled synthetic Test-ID benchmark, the learned model achieved
 approximately 60% lower mean source error than the stored identity and
@@ -344,7 +378,7 @@ From the repository root, run the classical suite:
 python -m pytest -q
 ```
 
-Run the optional AI research suite separately in its compatible environment:
+Run the optional ML research suite separately in its compatible environment:
 
 ```bash
 python -m pytest -q \
@@ -355,11 +389,11 @@ python -m pytest -q \
 ```
 
 At the audited v0.1.0 revision, 643 classical tests and 229 optional
-AI research tests passed. Counts describe this revision and may evolve with the
+ML research tests passed. Counts describe this revision and may evolve with the
 test suite.
 
 Synthetic generation and studies use explicit seeds. The final notebook stores
-its reviewed outputs, generated report trees remain ignored, and the optional AI
+its reviewed outputs, generated report trees remain ignored, and the optional ML
 bundle preserves the dataset/configuration/normalization hashes, fixed best
 checkpoints, partitions, and verification metadata. PyTorch is not imported by
 the classical package or included in the built wheel.
@@ -373,8 +407,8 @@ ThermoReconLab/
 ├── examples/                  # official user examples
 ├── notebooks/
 │   └── demo_presentation_final.ipynb
-├── research/ai/               # optional synthetic AI research
-├── data_external/             # frozen synthetic AI bundle and metadata
+├── research/ai/               # optional synthetic ML research
+├── data_external/             # frozen synthetic ML bundle and metadata
 ├── requirements.txt           # classical runtime convenience mirror
 ├── pyproject.toml             # canonical package/build metadata
 ├── README.md
@@ -398,17 +432,17 @@ ThermoReconLab data. Raw external ULRI arrays are not distributed.
 - A low sensor residual does not imply low source error.
 - Unknown external data has no source-truth metrics.
 - Synthetic validation is not real experimental validation.
-- The AI workflow is synthetic-only and has no external generalization claim.
+- The ML workflow is synthetic-only and has no external generalization claim.
 - MC dropout measures predictive dispersion, not a Bayesian posterior or a
   production uncertainty guarantee.
-- Neither the classical nor AI workflow is claimed to be production-ready.
+- Neither the classical nor ML workflow is claimed to be production-ready.
 
 ## Project status and version
 
 ThermoReconLab is academic/research software. Version `0.1.0` focuses on
 deterministic finite-difference reconstruction, controlled synthetic evidence,
 external measurement workflows, diagnostics, reporting, and an isolated
-optional AI research extension.
+optional ML research extension.
 
 ## License
 

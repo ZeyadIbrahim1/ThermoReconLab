@@ -3,7 +3,7 @@
 - Phase 5 status: complete
 - Tasks completed: 5/5
 - Final audited classical suite: 643 passed
-- Final audited optional AI suite: 229 passed
+- Final audited optional ML suite: 229 passed
 - Historical Phase 5 Tasks 2–4 closure: 157 passed
 - Historical Phase 5 combined closure including Task 5: 221 passed
 - Historical Task 5 finalization subset: 64 passed

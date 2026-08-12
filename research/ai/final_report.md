@@ -4,7 +4,7 @@
 
 ## 1. Executive summary
 
-Phase 5 evaluated an optional, isolated AI workflow on synthetic steady-state source reconstruction. All three learned methods improved synthetic source RMSE over identity and smoothness Tikhonov, but no external or real-world generalization was established. Classical ThermoReconLab remains the validated package core.
+Phase 5 evaluated an optional, isolated ML workflow on synthetic steady-state source reconstruction. All three learned methods improved synthetic source RMSE over identity and smoothness Tikhonov, but no external or real-world generalization was established. Classical ThermoReconLab remains the validated package core.
 
 ## 2. Research question
 

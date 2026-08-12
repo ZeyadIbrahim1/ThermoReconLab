@@ -4,7 +4,7 @@ Access date for all web sources and local retrievals: **2026-07-18**.
 
 ## 1. Scope
 
-This audit covers suitability of the ULRI vehicle-fire dataset and IRT-PVC for an optional research extension. It does not generate datasets, implement neural models or losses, train models, evaluate AI, or start Task 2.
+This audit covers suitability of the ULRI vehicle-fire dataset and IRT-PVC for an optional research extension. It does not generate datasets, implement neural models or losses, train models, evaluate ML models, or start Task 2.
 
 ## 2. Phase 5 research question
 
@@ -299,4 +299,4 @@ HFITS is GPL-3.0 software according to its official repository and publication: 
 | Temporal modelling | Conditionally suitable | Ordered 2,200-frame series exists, but timestamps and sampling interval are absent from HDF5 |
 | Current steady-state Poisson loss | Unsuitable | Transient incident surface heat flux differs from steady-state source `q` and required physics/coordinates are absent |
 
-Any future AI pipeline using this pair should use `task_type="external_heat_flux"`. **Task 2 remains no-go for now** because units, timestamps, physical coordinates/orientation, gauge registration, and checkpoint licensing remain unresolved. The verified pair completes Task 1 feasibility evidence but does not authorize dataset generation or model work.
+Any future ML pipeline using this pair should use `task_type="external_heat_flux"`. **Task 2 remains no-go for now** because units, timestamps, physical coordinates/orientation, gauge registration, and checkpoint licensing remain unresolved. The verified pair completes Task 1 feasibility evidence but does not authorize dataset generation or model work.
